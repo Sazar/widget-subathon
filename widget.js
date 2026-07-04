@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.36b
+   SUBATHON WIDGET v2.36c
    .idle sur alertName : petit texte au démarrage
    Retiré dès qu'un vrai event arrive
    ============================================= */
@@ -401,20 +401,19 @@ window.addEventListener('onEventReceived', function(obj) {
     const tier    = tierLabel(tierRaw);
 
     /*
-     * StreamElements peut envoyer months=1 même pour un resub.
-     * On privilégie monthsStreak (total cumulé), puis months, puis on
-     * considère que c'est un resub si l'un des deux est > 0.
-     * Un "vrai" nouveau sub n'a généralement pas de champ months du tout
-     * ou months=1 SANS monthsStreak.
+     * Nombre de mois : on lit monthsStreak en priorité (cumul total SE),
+     * puis months, puis cumumulativeMonths comme dernière chance.
+     * On l'affiche dès qu'il est >= 1.
      */
-    const monthsRaw   = safeInt(data.months, 0);
-    const streakRaw   = safeInt(data.monthsStreak, 0);
-    const totalMonths = streakRaw > 0 ? streakRaw : monthsRaw;
-    const isResub     = !isGift && totalMonths > 1;
+    const totalMonths = safeInt(data.monthsStreak, 0)
+                     || safeInt(data.cumulativeMonths, 0)
+                     || safeInt(data.months, 0);
+
+    const isResub = !isGift && totalMonths > 1;
 
     let secsToAdd   = 0;
     let type        = 'sub';
-    let bottomExtra = null;
+    let bottomExtra = totalMonths >= 1 ? 'x' + totalMonths : null;
 
     if (isGift) {
       if (!cfg('giftEnabled')) return;
@@ -423,13 +422,12 @@ window.addEventListener('onEventReceived', function(obj) {
       const t     = safeInt(tierRaw, 1000);
       const key   = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
       secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
-      bottomExtra = 'x' + count;
+      bottomExtra = 'x' + count;  /* pour gift : nombre de subs offerts */
       if (cfg('goalType') === 'sub') addGoal(count);
     } else if (isResub) {
       if (!cfg('resubEnabled')) return;
-      type        = 'resub';
-      secsToAdd   = tierSeconds('timePerResub', tierRaw);
-      bottomExtra = 'x' + totalMonths;
+      type      = 'resub';
+      secsToAdd = tierSeconds('timePerResub', tierRaw);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
       secsToAdd = tierSeconds('timePerSub', tierRaw);
