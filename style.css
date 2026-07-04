@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.37
+   SUBATHON WIDGET v2.38
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -52,18 +52,18 @@ body {
   border-radius: var(--radius-large);
   padding: 28px 22px 36px;
   text-align: center;
-  height: 130px;        /* hauteur fixe — ne grandit jamais */
+  height: 130px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   position: relative;
-  overflow: hidden;     /* contenu tronqué, pas d'agrandissement */
+  overflow: hidden;
 }
 
 .alert-type {
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -87,9 +87,9 @@ body {
   transition: font-size 0.2s ease;
 }
 
-/* Taille réduite pour le texte idle "Pour ajouter du temps" */
+/* Taille pour le texte idle */
 .alert-name.idle {
-  font-size: 18px;
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: 1.5px;
   color: var(--text-muted);
