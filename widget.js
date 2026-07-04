@@ -1,27 +1,43 @@
 /* =============================================
-   SUBATHON WIDGET v2.13 — Logique
+   SUBATHON WIDGET v2.14 — Logique
    Compatible StreamElements
+   T1/T2/T3 séparés des resubs et gifts
    ============================================= */
 
 const DEFAULT = {
   initialTime:    3600,
-  timePerSub:     300,
-  timePerResub:   180,
-  timePerGift:    300,
+  // Subs par tier
+  timePerSubT1:   300,
+  timePerSubT2:   600,
+  timePerSubT3:   900,
+  // Resubs par tier
+  timePerResubT1: 180,
+  timePerResubT2: 360,
+  timePerResubT3: 540,
+  // Gift subs par tier
+  timePerGiftT1:  300,
+  timePerGiftT2:  600,
+  timePerGiftT3:  900,
+  // Dons
   timePerDono:    60,
   timePerDonoPer: 5,
+  // Bits
   timePerBits:    30,
   timePerBitsPer: 100,
+  // Follow
   timePerFollow:  15,
-  goalEnabled:    true,
-  goalType:       'sub',
-  goalTarget:     50,
+  // Toggles
   subEnabled:     true,
   resubEnabled:   true,
   giftEnabled:    true,
   donoEnabled:    true,
   bitsEnabled:    true,
   followEnabled:  true,
+  // Goal
+  goalEnabled:    true,
+  goalType:       'sub',
+  goalTarget:     50,
+  // Apparence
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
@@ -80,6 +96,14 @@ function hexToRgba(hex, opacity) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+// Résout le tier Twitch (1000=T1, 2000=T2, 3000=T3) vers une clé de config
+function tierKey(prefix, tierRaw) {
+  const t = safeInt(tierRaw, 1000);
+  if (t >= 3000) return prefix + 'T3';
+  if (t >= 2000) return prefix + 'T2';
+  return prefix + 'T1';
+}
+
 let timeLeft      = 0;
 let running       = false;
 let goalCurrent   = 0;
@@ -99,12 +123,12 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    ROTATION INFO BOX
-   Cycle toutes les 5s : T1 → T2 → T3 → last event → T1 → ...
-   Suspendu pendant 6s après un vrai event pour laisser lire le +temps
+   Cycle toutes les 5s : Sub T1 → Sub T2 → Sub T3 → last event → ...
+   Suspendu 6s après un vrai event
    ============================================= */
-let lastEventText    = null;   // dernier texte "+Xmin" d'un vrai event
-let rotationLocked   = false;  // true = un event vient d'arriver, on attend
-let rotationIndex    = 0;      // 0=T1, 1=T2, 2=T3, 3=last event
+let lastEventText  = null;
+let rotationLocked = false;
+let rotationIndex  = 0;
 let rotationInterval = null;
 
 function formatTimeLabel(s) {
@@ -115,26 +139,24 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
-// Retourne les slides de la rotation en lisant les params en temps réel
 function buildRotationSlides() {
-  const t1 = safeInt(cfg('timePerSub'),   DEFAULT.timePerSub);
-  const t2 = safeInt(cfg('timePerResub'), DEFAULT.timePerResub);
-  const t3 = safeInt(cfg('timePerGift'),  DEFAULT.timePerGift);
+  const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
+  const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
+  const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
   const slides = [
-    { label: 'T1', value: '+' + formatTimeLabel(t1) },
-    { label: 'T2', value: '+' + formatTimeLabel(t2) },
-    { label: 'T3', value: '+' + formatTimeLabel(t3) },
+    { label: 'SUB T1', value: '+' + formatTimeLabel(t1) },
+    { label: 'SUB T2', value: '+' + formatTimeLabel(t2) },
+    { label: 'SUB T3', value: '+' + formatTimeLabel(t3) },
   ];
   if (lastEventText) {
-    slides.push({ label: '▶', value: lastEventText });
+    slides.push({ label: '▶ DERNIER', value: lastEventText });
   }
   return slides;
 }
 
 function setInfoBoxContent(label, value) {
-  // label petit en haut, value grand en dessous
   elInfoText.innerHTML =
-    `<span style="font-size:0.55em;letter-spacing:2px;opacity:0.85;display:block;line-height:1">${label}</span>` +
+    `<span style="font-size:0.5em;letter-spacing:2px;opacity:0.85;display:block;line-height:1.1">${label}</span>` +
     `<span>${value}</span>`;
 }
 
@@ -152,27 +174,21 @@ function rotationTick() {
 
 function startRotation() {
   if (rotationInterval) clearInterval(rotationInterval);
-  rotationIndex    = 0;
-  rotationLocked   = false;
-  rotationTick();   // affiche T1 immédiatement
+  rotationIndex  = 0;
+  rotationLocked = false;
+  rotationTick();
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
-// Appelé quand un vrai event arrive : affiche +temps, bloque la rotation 6s
 function showInfoBox(seconds) {
   lastEventText  = '+' + formatTimeLabel(seconds);
   rotationLocked = true;
-  rotationIndex  = 0; // reprendra à T1 après le lock
-
-  setInfoBoxContent('▶', lastEventText);
+  rotationIndex  = 0;
+  setInfoBoxContent('▶ DERNIER', lastEventText);
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
   elInfoBox.classList.add('pop');
-
-  // Débloque après 6s et reprend la rotation
-  setTimeout(() => {
-    rotationLocked = false;
-  }, 6000);
+  setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
 /* ============================================= */
@@ -211,13 +227,13 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft = safeInt(cfg('initialTime'), DEFAULT.initialTime);
-
+  timeLeft    = safeInt(cfg('initialTime'), DEFAULT.initialTime);
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
-  elGoalUnit.textContent = goalUnitLabel();
-  elGoalTgt.textContent  = goalTarget;
-  elGoalCur.textContent  = 0;
+
+  elGoalUnit.textContent  = goalUnitLabel();
+  elGoalTgt.textContent   = goalTarget;
+  elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
   updateTimerDisplay();
@@ -234,11 +250,9 @@ function goalUnitLabel() {
 
 function applyColors() {
   const r = document.documentElement;
-
   const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
   const goalBg = hexToRgba(cfg('goalBgColor'), safeInt(cfg('goalBgOpacity'), DEFAULT.goalBgOpacity));
   const glow   = hexToRgba(cfg('glowColor'),   safeInt(cfg('glowOpacity'),   DEFAULT.glowOpacity));
-
   const map = {
     '--widget-width': cfg('widgetWidth'),
     '--accent':       cfg('accent'),
@@ -321,28 +335,35 @@ window.addEventListener('onEventReceived', function(obj) {
   if (listener === 'subscriber-latest') {
     if (!cfg('subEnabled')) return;
     const isGift  = !!data.isgift;
-    const isResub = !isGift && parseInt(data.amount) > 1;
-    const type    = isGift ? 'gift' : (isResub ? 'resub' : 'sub');
-    const uname   = data.displayName || data.name || 'Anonyme';
-    let secsToAdd = 0;
-    let extra     = null;
+    const isResub = !isGift && safeInt(data.months, 1) > 1;
+    const tierRaw = data.tier || 1000;
 
-    if (type === 'gift') {
+    let secsToAdd = 0;
+    let type      = 'sub';
+    let extra     = 'T' + (safeInt(tierRaw, 1000) / 1000);
+    const uname   = data.displayName || data.name || 'Anonyme';
+
+    if (isGift) {
       if (!cfg('giftEnabled')) return;
+      type = 'gift';
       const count = safeInt(data.amount, 1);
-      secsToAdd   = count * safeInt(cfg('timePerGift'), DEFAULT.timePerGift);
-      extra       = 'x' + count;
+      const key   = tierKey('timePerGift', tierRaw);
+      secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
+      extra       = 'x' + count + ' T' + (safeInt(tierRaw, 1000) / 1000);
       if (cfg('goalType') === 'sub') addGoal(count);
-    } else if (type === 'resub') {
+    } else if (isResub) {
       if (!cfg('resubEnabled')) return;
-      secsToAdd   = safeInt(cfg('timePerResub'), DEFAULT.timePerResub);
-      extra       = 'x' + safeInt(data.amount, 1);
+      type = 'resub';
+      const key = tierKey('timePerResub', tierRaw);
+      secsToAdd = safeInt(cfg(key), DEFAULT[key]);
+      extra     = 'Mois ' + safeInt(data.months, 1) + ' • T' + (safeInt(tierRaw, 1000) / 1000);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
-      secsToAdd = safeInt(cfg('timePerSub'), DEFAULT.timePerSub);
-      extra     = data.tier ? 'Tier ' + Math.round(parseInt(data.tier) / 1000) : null;
+      const key = tierKey('timePerSub', tierRaw);
+      secsToAdd = safeInt(cfg(key), DEFAULT[key]);
       if (cfg('goalType') === 'sub') addGoal(1);
     }
+
     addTime(secsToAdd);
     showInfoBox(secsToAdd);
     showAlert(type, uname, extra);
