@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.37
+   SUBATHON WIDGET v2.38
    ============================================= */
 
 const DEFAULT = {
@@ -141,14 +141,50 @@ function setIdle() {
   elAlertName.style.fontSize = '';
 }
 
+/* ===== IDLE CYCLING ===== */
+const IDLE_DELAY  = 60 * 1000;  // 1 minute sans event avant de passer idle
+const CYCLE_DELAY = 20 * 1000;  // 20s entre chaque bascule idle <-> dernier event
+
+let lastEventState  = null;   // { type, name, bottomExtra, topTier }
+let idleTimer       = null;
+let cycleInterval   = null;
+let cycleShowIdle   = true;
+
+function resetIdleCycle() {
+  if (idleTimer)     { clearTimeout(idleTimer);      idleTimer     = null; }
+  if (cycleInterval) { clearInterval(cycleInterval); cycleInterval = null; }
+}
+
+function startIdleCycle() {
+  resetIdleCycle();
+  if (!lastEventState) return;
+
+  idleTimer = setTimeout(() => {
+    // Bascule vers idle en premier
+    cycleShowIdle = true;
+    setIdle();
+
+    // Puis alterne toutes les 20s
+    cycleInterval = setInterval(() => {
+      cycleShowIdle = !cycleShowIdle;
+      if (cycleShowIdle) {
+        setIdle();
+      } else {
+        const { type, name, bottomExtra, topTier } = lastEventState;
+        showAlert(type, name, bottomExtra, topTier, false);
+      }
+    }, CYCLE_DELAY);
+  }, IDLE_DELAY);
+}
+
 /* ===== FLIP ROTATOR ===== */
-let activeSlot     = elSlotA;
-let inactiveSlot   = elSlotB;
-let flipLocked     = false;
-let rotationLocked = false;
-let rotationIndex  = 0;
+let activeSlot       = elSlotA;
+let inactiveSlot     = elSlotB;
+let flipLocked       = false;
+let rotationLocked   = false;
+let rotationIndex    = 0;
 let rotationInterval = null;
-let lastEventSecs  = null;
+let lastEventSecs    = null;
 
 function formatTimeLabel(s) {
   if (s < 60)   return s + 's';
@@ -353,7 +389,8 @@ const TYPE_LABELS = {
   follow: 'Nouveau Follow',
 };
 
-function showAlert(type, name, bottomExtra, topTier) {
+// flash=true pour les vrais events, false pour le rappel du cycle idle
+function showAlert(type, name, bottomExtra, topTier, flash = true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
@@ -369,9 +406,11 @@ function showAlert(type, name, bottomExtra, topTier) {
 
   elAlertName.textContent = bottomExtra ? name + ' - ' + bottomExtra : name;
 
-  elAlertBox.classList.remove('flash');
-  void elAlertBox.offsetWidth;
-  elAlertBox.classList.add('flash');
+  if (flash) {
+    elAlertBox.classList.remove('flash');
+    void elAlertBox.offsetWidth;
+    elAlertBox.classList.add('flash');
+  }
 }
 
 function addGoal(amount) {
@@ -399,11 +438,6 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
 
-    /*
-     * SE envoie le nombre de mois dans data.amount pour les subs/resubs.
-     * Pour les gift subs, data.amount = nombre de subs offerts.
-     * On distingue les deux cas avec isGift.
-     */
     const totalMonths = isGift ? 0 : safeInt(data.amount, 0);
     const isResub     = !isGift && totalMonths > 1;
 
@@ -432,7 +466,9 @@ window.addEventListener('onEventReceived', function(obj) {
 
     addTime(secsToAdd);
     showInfoBox(secsToAdd);
-    showAlert(type, uname, bottomExtra, tier);
+    showAlert(type, uname, bottomExtra, tier, true);
+    lastEventState = { type, name: uname, bottomExtra, topTier: tier };
+    startIdleCycle();
   }
 
   if (listener === 'tip-latest') {
@@ -445,7 +481,9 @@ window.addEventListener('onEventReceived', function(obj) {
     if (secsToAdd > 0) addTime(secsToAdd);
     if (cfg('goalType') === 'dono') addGoal(amount);
     showInfoBox(secsToAdd || 0);
-    showAlert('dono', uname, amount + '€');
+    showAlert('dono', uname, amount + '€', null, true);
+    lastEventState = { type: 'dono', name: uname, bottomExtra: amount + '€', topTier: null };
+    startIdleCycle();
   }
 
   if (listener === 'cheer-latest') {
@@ -458,7 +496,9 @@ window.addEventListener('onEventReceived', function(obj) {
     if (secsToAdd > 0) addTime(secsToAdd);
     if (cfg('goalType') === 'bits') addGoal(bits);
     showInfoBox(secsToAdd || 0);
-    showAlert('bits', uname, bits + ' bits');
+    showAlert('bits', uname, bits + ' bits', null, true);
+    lastEventState = { type: 'bits', name: uname, bottomExtra: bits + ' bits', topTier: null };
+    startIdleCycle();
   }
 
   if (listener === 'follower-latest') {
@@ -467,7 +507,9 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname     = data.displayName || data.name || 'Anonyme';
     addTime(secsToAdd);
     showInfoBox(secsToAdd);
-    showAlert('follow', uname, null);
+    showAlert('follow', uname, null, null, true);
+    lastEventState = { type: 'follow', name: uname, bottomExtra: null, topTier: null };
+    startIdleCycle();
   }
 });
 
