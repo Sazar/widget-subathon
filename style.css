@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.12 — Style
+   SUBATHON WIDGET v2.18 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -19,7 +19,7 @@
   --info-text:       #ffffff;
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
-  --widget-font:     'Rajdhani', sans-serif;  /* modifié dynamiquement par JS */
+  --widget-font:     'Rajdhani', sans-serif;
   --radius-large:    14px;
   --radius-small:    8px;
   --overlap:         18px;
@@ -96,6 +96,7 @@ body {
 }
 
 /* ===== INFO BOX — cheval haut gauche ===== */
+/* NB : pas de font-size ici — contrôlé exclusivement par le slider via JS sur #infoBoxText */
 .info-box {
   position: absolute;
   top: 0;
@@ -105,15 +106,20 @@ body {
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
-  font-size: 22px;
   font-weight: 700;
   letter-spacing: 1px;
   padding: 5px 16px 5px 14px;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
-  min-width: 80px;
+  min-width: 60px;
   text-align: center;
   white-space: nowrap;
+  line-height: 1.2;
+}
+
+#infoBoxText {
+  display: block;
+  /* font-size injecté par JS (applyInfoSize) */
 }
 
 .info-box.pop {
@@ -166,7 +172,7 @@ body {
   margin-left: 4px;
 }
 
-/* ===== TIMER BOX — cheval bas droite, 2 derniers chiffres dépassent ===== */
+/* ===== TIMER BOX — cheval bas droite ===== */
 .timer-box {
   position: absolute;
   bottom: 0;
