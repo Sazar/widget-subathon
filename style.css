@@ -207,11 +207,14 @@ body {
   bottom: 0;
   right: -48px;
   z-index: 10;
+  transform: rotate(4deg);       /* symetrique info-box : -4deg en haut gauche, +4deg en bas droite */
+  transform-origin: bottom right;
   background: var(--timer-bg);
   border-radius: var(--radius-small);
   padding: 5px 18px 6px;
   display: inline-flex;
   align-items: center;
+  box-shadow: 0 0 14px var(--glow);
 }
 
 .timer-display {
