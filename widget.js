@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.1 — Logique
+   SUBATHON WIDGET v2.3 — Logique
    Compatible StreamElements
    ============================================= */
 
@@ -22,10 +22,12 @@ const DEFAULT = {
   donoEnabled:    true,
   bitsEnabled:    true,
   followEnabled:  true,
+  alertFontSize:  42,
+  alertFont:      'Exo 2',
   widgetWidth:    '520px',
   accent:         '#e84118',
   accentDark:     '#b83010',
-  boxBg:          'rgba(12,12,20,0.82)',
+  boxBg:          'rgba(14,14,20,0.82)',
   boxBorder:      '#e84118',
   timerBg:        '#e84118',
   timerText:      '#ffffff',
@@ -37,19 +39,27 @@ const DEFAULT = {
   glow:           'rgba(232,65,24,0.45)',
 };
 
-// Sanitize : retourne un entier propre depuis n'importe quelle valeur (supprime virgules, espaces, etc.)
+// Polices disponibles — chargées dynamiquement si sélectionnées
+const GOOGLE_FONTS = {
+  'Oswald':           'Oswald:wght@400;600;700',
+  'Bebas Neue':       'Bebas+Neue',
+  'Anton':            'Anton',
+  'Barlow Condensed': 'Barlow+Condensed:wght@400;600;700;800',
+  'Teko':             'Teko:wght@400;500;600;700',
+  'Russo One':        'Russo+One',
+  'Orbitron':         'Orbitron:wght@400;700;800',
+  'Play':             'Play:wght@400;700',
+};
+
 function safeInt(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
-  // Remplace virgule par point, puis parseInt tronque la partie décimale
-  const cleaned = String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, '');
-  const n = parseInt(cleaned, 10);
+  const n = parseInt(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''), 10);
   return isNaN(n) ? fallback : n;
 }
 
 function safeFloat(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
-  const cleaned = String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, '');
-  const n = parseFloat(cleaned);
+  const n = parseFloat(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? fallback : n;
 }
 
@@ -66,24 +76,46 @@ let goalCurrent   = 0;
 let goalTarget    = 1;
 let timerInterval = null;
 
-const elTimer      = document.getElementById('timerDisplay');
-const elAlertBox   = document.getElementById('alertBox');
-const elAlertType  = document.getElementById('alertType');
-const elAlertName  = document.getElementById('alertName');
-const elInfoBox    = document.getElementById('infoBox');
-const elInfoText   = document.getElementById('infoBoxText');
-const elGoalBox    = document.getElementById('goalBox');
-const elGoalCur    = document.getElementById('goalCurrent');
-const elGoalTgt    = document.getElementById('goalTarget');
-const elGoalUnit   = document.getElementById('goalUnit');
+const elTimer     = document.getElementById('timerDisplay');
+const elAlertBox  = document.getElementById('alertBox');
+const elAlertType = document.getElementById('alertType');
+const elAlertName = document.getElementById('alertName');
+const elInfoBox   = document.getElementById('infoBox');
+const elInfoText  = document.getElementById('infoBoxText');
+const elGoalBox   = document.getElementById('goalBox');
+const elGoalCur   = document.getElementById('goalCurrent');
+const elGoalTgt   = document.getElementById('goalTarget');
+const elGoalUnit  = document.getElementById('goalUnit');
+
+function loadFont(fontName) {
+  // Rajdhani et Exo 2 sont déjà dans le CSS de base
+  if (fontName === 'Exo 2' || fontName === 'Rajdhani') return;
+  const query = GOOGLE_FONTS[fontName];
+  if (!query) return;
+  // Vérifie si déjà chargé
+  const existing = document.querySelector(`link[data-font="${fontName}"]`);
+  if (existing) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.setAttribute('data-font', fontName);
+  link.href = `https://fonts.googleapis.com/css2?family=${query}&display=swap`;
+  document.head.appendChild(link);
+}
+
+function applyAlertStyle() {
+  const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
+  const font     = String(cfg('alertFont') || DEFAULT.alertFont);
+  loadFont(font);
+  elAlertName.style.fontSize   = fontSize + 'px';
+  elAlertName.style.fontFamily = `'${font}', 'Exo 2', sans-serif`;
+}
 
 function init() {
   applyColors();
+  applyAlertStyle();
 
-  // Temps initial — lecture propre avec safeInt
   timeLeft = safeInt(cfg('initialTime'), DEFAULT.initialTime);
 
-  // Goal
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
   elGoalUnit.textContent = goalUnitLabel();
@@ -161,8 +193,7 @@ function updateTimerDisplay() {
 }
 
 function showInfoBox(seconds) {
-  const label = formatTimeLabel(seconds);
-  elInfoText.textContent = '+' + label;
+  elInfoText.textContent = '+' + formatTimeLabel(seconds);
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
   elInfoBox.classList.add('pop');
@@ -219,14 +250,12 @@ window.addEventListener('onEventReceived', function(obj) {
       if (cfg('goalType') === 'sub') addGoal(count);
     } else if (type === 'resub') {
       if (!cfg('resubEnabled')) return;
-      secsToAdd     = safeInt(cfg('timePerResub'), DEFAULT.timePerResub);
-      const months  = safeInt(data.amount, 1);
-      extra         = 'x' + months;
+      secsToAdd   = safeInt(cfg('timePerResub'), DEFAULT.timePerResub);
+      extra       = 'x' + safeInt(data.amount, 1);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
-      secsToAdd     = safeInt(cfg('timePerSub'), DEFAULT.timePerSub);
-      const tier    = data.tier ? 'Tier ' + Math.round(parseInt(data.tier) / 1000) : null;
-      extra         = tier;
+      secsToAdd = safeInt(cfg('timePerSub'), DEFAULT.timePerSub);
+      extra     = data.tier ? 'Tier ' + Math.round(parseInt(data.tier) / 1000) : null;
       if (cfg('goalType') === 'sub') addGoal(1);
     }
     addTime(secsToAdd);
@@ -239,8 +268,7 @@ window.addEventListener('onEventReceived', function(obj) {
     const amount    = safeFloat(data.amount, 0);
     const perUnit   = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
     const secsEach  = safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
-    const tranches  = Math.floor(amount / perUnit);
-    const secsToAdd = tranches * secsEach;
+    const secsToAdd = Math.floor(amount / perUnit) * secsEach;
     const uname     = data.username || 'Anonyme';
     if (secsToAdd > 0) addTime(secsToAdd);
     if (cfg('goalType') === 'dono') addGoal(amount);
@@ -253,8 +281,7 @@ window.addEventListener('onEventReceived', function(obj) {
     const bits      = safeInt(data.amount, 0);
     const perUnit   = safeInt(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
     const secsEach  = safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
-    const tranches  = Math.floor(bits / perUnit);
-    const secsToAdd = tranches * secsEach;
+    const secsToAdd = Math.floor(bits / perUnit) * secsEach;
     const uname     = data.displayName || data.name || 'Anonyme';
     if (secsToAdd > 0) addTime(secsToAdd);
     if (cfg('goalType') === 'bits') addGoal(bits);
@@ -272,16 +299,13 @@ window.addEventListener('onEventReceived', function(obj) {
   }
 });
 
-// onWidgetLoad est déclenché par SE avec fieldData déjà injecté
 window.addEventListener('onWidgetLoad', function(obj) {
-  // SE passe les fields dans obj.detail.fieldData — on les récupère ici
   if (obj && obj.detail && obj.detail.fieldData) {
     window.fieldData = obj.detail.fieldData;
   }
   init();
 });
 
-// Fallback dev local (sans SE)
 if (typeof fieldData === 'undefined') {
   window.fieldData = {};
   init();
