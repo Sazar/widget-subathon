@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.36
+   SUBATHON WIDGET v2.36b
    .idle sur alertName : petit texte au démarrage
    Retiré dès qu'un vrai event arrive
    ============================================= */
@@ -136,7 +136,6 @@ function buildIdleText() {
   return parts.length ? parts.join('/') : 'Subathon';
 }
 
-/* Met le widget en état idle (texte réduit) */
 function setIdle() {
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = 'Pour ajouter du temps';
@@ -253,7 +252,6 @@ function applyGlobalFont() {
 
 function applyAlertStyle() {
   const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
-  /* On stocke la taille des events mais on ne l'applique pas en idle */
   elAlertName.dataset.eventSize = fontSize + 'px';
 }
 
@@ -351,29 +349,16 @@ function updateTimerDisplay() {
     String(s).padStart(2, '0');
 }
 
-/* TYPE_LABELS pour les events non-sub (pas de tier) */
 const TYPE_LABELS = {
   dono:   'Nouveau Don',
   bits:   'Cheers',
   follow: 'Nouveau Follow',
 };
 
-/*
- * showAlert(type, name, bottomExtra, topTier)
- *
- * Ligne du haut (alertType) :
- *   - Si topTier est fourni → "Nouveau Sub T1" / "Réabonnement T2" / "Gift Sub Prime" etc.
- *   - Sinon → TYPE_LABELS[type] classique
- *
- * Ligne du bas (alertName) :
- *   - bottomExtra fourni → "Pseudo - x12"
- *   - Sinon → juste "Pseudo"
- */
 function showAlert(type, name, bottomExtra, topTier) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
-  /* Ligne du haut */
   if (topTier) {
     const baseLabel = type === 'sub'   ? 'Nouveau Sub'
                     : type === 'resub' ? 'Réabonnement'
@@ -384,7 +369,6 @@ function showAlert(type, name, bottomExtra, topTier) {
     elAlertType.textContent = TYPE_LABELS[type] || type;
   }
 
-  /* Ligne du bas */
   elAlertName.textContent = bottomExtra ? name + ' - ' + bottomExtra : name;
 
   elAlertBox.classList.remove('flash');
@@ -412,20 +396,32 @@ window.addEventListener('onEventReceived', function(obj) {
   if (listener === 'subscriber-latest') {
     if (!cfg('subEnabled')) return;
     const isGift  = !!data.isgift;
-    const isResub = !isGift && safeInt(data.months, 1) > 1;
     const tierRaw = data.tier || 1000;
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
-    let secsToAdd = 0;
-    let type      = 'sub';
-    let bottomExtra = null; /* ligne du bas : mois ou quantité */
+
+    /*
+     * StreamElements peut envoyer months=1 même pour un resub.
+     * On privilégie monthsStreak (total cumulé), puis months, puis on
+     * considère que c'est un resub si l'un des deux est > 0.
+     * Un "vrai" nouveau sub n'a généralement pas de champ months du tout
+     * ou months=1 SANS monthsStreak.
+     */
+    const monthsRaw   = safeInt(data.months, 0);
+    const streakRaw   = safeInt(data.monthsStreak, 0);
+    const totalMonths = streakRaw > 0 ? streakRaw : monthsRaw;
+    const isResub     = !isGift && totalMonths > 1;
+
+    let secsToAdd   = 0;
+    let type        = 'sub';
+    let bottomExtra = null;
 
     if (isGift) {
       if (!cfg('giftEnabled')) return;
       type = 'gift';
       const count = safeInt(data.amount, 1);
-      const t = safeInt(tierRaw, 1000);
-      const key = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
+      const t     = safeInt(tierRaw, 1000);
+      const key   = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
       secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
       bottomExtra = 'x' + count;
       if (cfg('goalType') === 'sub') addGoal(count);
@@ -433,7 +429,7 @@ window.addEventListener('onEventReceived', function(obj) {
       if (!cfg('resubEnabled')) return;
       type        = 'resub';
       secsToAdd   = tierSeconds('timePerResub', tierRaw);
-      bottomExtra = 'x' + safeInt(data.months, 1);
+      bottomExtra = 'x' + totalMonths;
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
       secsToAdd = tierSeconds('timePerSub', tierRaw);
@@ -442,7 +438,6 @@ window.addEventListener('onEventReceived', function(obj) {
 
     addTime(secsToAdd);
     showInfoBox(secsToAdd);
-    /* tier en haut, mois/quantité en bas */
     showAlert(type, uname, bottomExtra, tier);
   }
 
