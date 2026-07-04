@@ -1,6 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.28 — Logique
-   Idle text = labels des events actifs dans fields
+   SUBATHON WIDGET v2.29 — Logique
+   Info-box : rotation Tier 1/2/3 + dernier event
+   Alert box idle : texte dynamique selon fields
    ============================================= */
 
 const DEFAULT = {
@@ -113,11 +114,7 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* ===== IDLE TEXT dynamique =====
-   Construit la ligne idle selon les events actifs :
-   sub+resub+gift → "Subs", dono → "Tips", bits → "Bits", follow → "Follow"
-   Ex: tout actif → "Subs / Tips / Bits / Follow"
-================================================ */
+/* ===== IDLE TEXT alert box ===== */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
@@ -144,23 +141,17 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
+/* Rotation info-box : T1/T2/T3 + dernier event (sans slide idle) */
 function buildRotationSlides() {
-  /* Slide 1 : idle (events actifs) */
-  const slides = [buildIdleText()];
-
-  /* Slides 2-4 : temps par tier sub si subs actifs */
-  if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) {
-    const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
-    const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
-    const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
-    slides.push('T1 +' + formatTimeLabel(t1));
-    slides.push('T2 +' + formatTimeLabel(t2));
-    slides.push('T3 +' + formatTimeLabel(t3));
-  }
-
-  /* Dernier slide : temps du dernier event reçu */
+  const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
+  const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
+  const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
+  const slides = [
+    'T1 +' + formatTimeLabel(t1),
+    'T2 +' + formatTimeLabel(t2),
+    'T3 +' + formatTimeLabel(t3),
+  ];
   if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
-
   return slides;
 }
 
@@ -217,7 +208,6 @@ function showInfoBox(seconds) {
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
   elInfoBox.classList.add('pop');
-  /* Après 6s on repasse en rotation normale */
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
@@ -268,7 +258,7 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
-  /* Idle text dans l'alert box au démarrage */
+  /* Alert box au démarrage : texte dynamique selon events actifs */
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = '–';
 
