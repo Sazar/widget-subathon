@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2 — Inspiré style Volkner
+   SUBATHON WIDGET v2.1 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -9,7 +9,7 @@
   --accent:          #e84118;
   --accent-dark:     #b83010;
   --bg-dark:         rgba(0,0,0,0);
-  --box-bg:          rgba(12, 12, 20, 0.88);
+  --box-bg:          rgba(14, 14, 20, 0.82);
   --box-border:      #e84118;
   --text-primary:    #ffffff;
   --text-muted:      #cccccc;
@@ -115,13 +115,13 @@ body {
 }
 
 /* ===== ALERT BOX ===== */
+/* Fond sombre semi-transparent, coins arrondis, sans effets lumineux */
 .alert-box {
-  background: var(--box-bg);
-  border: 2px solid var(--box-border);
-  border-radius: var(--radius);
+  background: rgba(14, 14, 20, 0.82);
+  border: none;
+  border-radius: 14px;
   padding: 18px 22px 20px;
   text-align: center;
-  box-shadow: 0 0 24px var(--glow), inset 0 0 30px rgba(232,65,24,0.05);
   min-height: 90px;
   display: flex;
   flex-direction: column;
@@ -130,14 +130,6 @@ body {
   gap: 2px;
   position: relative;
   overflow: hidden;
-}
-
-.alert-box::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 0%, rgba(232,65,24,0.10) 0%, transparent 65%);
-  pointer-events: none;
 }
 
 .alert-type {
@@ -156,7 +148,6 @@ body {
   color: var(--text-primary);
   line-height: 1.05;
   letter-spacing: 1px;
-  text-shadow: 0 0 20px var(--glow);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -168,8 +159,8 @@ body {
 }
 
 @keyframes flashAnim {
-  0%   { background: rgba(232,65,24,0.22); }
-  100% { background: var(--box-bg); }
+  0%   { background: rgba(232,65,24,0.18); }
+  100% { background: rgba(14, 14, 20, 0.82); }
 }
 
 /* ===== BOTTOM ROW : Timer ===== */
