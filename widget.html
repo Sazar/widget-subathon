@@ -8,31 +8,6 @@
 </head>
 <body>
 
-  <!-- SVG clip-path : encoche arc concave bas-gauche de l'alert-box -->
-  <svg width="0" height="0" style="position:absolute">
-    <defs>
-      <clipPath id="alertBoxClip" clipPathUnits="objectBoundingBox">
-        <!--
-          Boite 100% x 100% en coordonnees normalisees (0..1)
-          Arc concave bas-gauche : rayon ~0.22 (relatif a la largeur)
-          On trace : haut-gauche -> haut-droite -> bas-droite
-            -> remonte sur le bord bas jusqu'au debut de l'arc
-            -> arc Q (bezier quadratique concave) vers le bord gauche
-            -> remonte jusqu'en haut-gauche
-        -->
-        <path d="
-          M 0,0
-          L 1,0
-          L 1,1
-          L 0.18,1
-          Q 0,1 0,0.78
-          L 0,0
-          Z
-        "/>
-      </clipPath>
-    </defs>
-  </svg>
-
   <div class="widget-wrapper">
     <div class="main-container">
 
@@ -40,6 +15,8 @@
       <div class="alert-box" id="alertBox">
         <div class="alert-type" id="alertType">En attente...</div>
         <div class="alert-name" id="alertName">–</div>
+        <!-- encoche circulaire bas-gauche -->
+        <div class="alert-notch"></div>
       </div>
 
       <!-- INFO BOX — cheval haut gauche -->
