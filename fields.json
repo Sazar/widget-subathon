@@ -5,11 +5,13 @@
   "timePerSubT1":    { "type": "number",   "label": "⏱ Secondes / Sub Tier 1",             "value": 300,  "step": 1, "min": 0 },
   "timePerSubT2":    { "type": "number",   "label": "⏱ Secondes / Sub Tier 2",             "value": 600,  "step": 1, "min": 0 },
   "timePerSubT3":    { "type": "number",   "label": "⏱ Secondes / Sub Tier 3",             "value": 900,  "step": 1, "min": 0 },
+  "timePerSubPrime": { "type": "number",   "label": "⏱ Secondes / Sub Prime",              "value": 300,  "step": 1, "min": 0 },
 
-  "resubEnabled":    { "type": "checkbox", "label": "✅ Activer : Resubs",                  "value": true },
-  "timePerResubT1":  { "type": "number",   "label": "⏱ Secondes / Resub Tier 1",           "value": 180,  "step": 1, "min": 0 },
-  "timePerResubT2":  { "type": "number",   "label": "⏱ Secondes / Resub Tier 2",           "value": 360,  "step": 1, "min": 0 },
-  "timePerResubT3":  { "type": "number",   "label": "⏱ Secondes / Resub Tier 3",           "value": 540,  "step": 1, "min": 0 },
+  "resubEnabled":      { "type": "checkbox", "label": "✅ Activer : Resubs",                "value": true },
+  "timePerResubT1":    { "type": "number",   "label": "⏱ Secondes / Resub Tier 1",         "value": 180,  "step": 1, "min": 0 },
+  "timePerResubT2":    { "type": "number",   "label": "⏱ Secondes / Resub Tier 2",         "value": 360,  "step": 1, "min": 0 },
+  "timePerResubT3":    { "type": "number",   "label": "⏱ Secondes / Resub Tier 3",         "value": 540,  "step": 1, "min": 0 },
+  "timePerResubPrime": { "type": "number",   "label": "⏱ Secondes / Resub Prime",          "value": 180,  "step": 1, "min": 0 },
 
   "giftEnabled":     { "type": "checkbox", "label": "✅ Activer : Gift Subs",               "value": true },
   "timePerGiftT1":   { "type": "number",   "label": "⏱ Secondes / Gift Sub Tier 1",        "value": 300,  "step": 1, "min": 0 },

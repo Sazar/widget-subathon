@@ -1,25 +1,26 @@
 /* =============================================
-   SUBATHON WIDGET v2.33
-   Idle : alertType = Subs/Tips/Bits/Follow
-          alertName = "Pour ajouter du temps"
+   SUBATHON WIDGET v2.34
+   Ajout Prime Sub + Prime Resub
    ============================================= */
 
 const DEFAULT = {
-  initialTime:    3600,
-  timePerSubT1:   300,
-  timePerSubT2:   600,
-  timePerSubT3:   900,
-  timePerResubT1: 180,
-  timePerResubT2: 360,
-  timePerResubT3: 540,
-  timePerGiftT1:  300,
-  timePerGiftT2:  600,
-  timePerGiftT3:  900,
-  timePerDono:    60,
-  timePerDonoPer: 5,
-  timePerBits:    30,
-  timePerBitsPer: 100,
-  timePerFollow:  15,
+  initialTime:      3600,
+  timePerSubT1:     300,
+  timePerSubT2:     600,
+  timePerSubT3:     900,
+  timePerSubPrime:  300,
+  timePerResubT1:   180,
+  timePerResubT2:   360,
+  timePerResubT3:   540,
+  timePerResubPrime:180,
+  timePerGiftT1:    300,
+  timePerGiftT2:    600,
+  timePerGiftT3:    900,
+  timePerDono:      60,
+  timePerDonoPer:   5,
+  timePerBits:      30,
+  timePerBitsPer:   100,
+  timePerFollow:    15,
   subEnabled:     true,
   resubEnabled:   true,
   giftEnabled:    true,
@@ -89,11 +90,24 @@ function hexToRgba(hex, opacity) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-function tierKey(prefix, tierRaw) {
-  const t = safeInt(tierRaw, 1000);
-  if (t >= 3000) return prefix + 'T3';
-  if (t >= 2000) return prefix + 'T2';
-  return prefix + 'T1';
+/* Détermine le temps à ajouter selon le tier
+   Twitch envoie tier = 1000/2000/3000 ou "Prime" */
+function tierSeconds(prefix, tierRaw) {
+  const t = String(tierRaw || '').toLowerCase();
+  if (t === 'prime') return safeInt(cfg(prefix + 'Prime'), DEFAULT[prefix + 'Prime']);
+  const n = safeInt(tierRaw, 1000);
+  if (n >= 3000) return safeInt(cfg(prefix + 'T3'), DEFAULT[prefix + 'T3']);
+  if (n >= 2000) return safeInt(cfg(prefix + 'T2'), DEFAULT[prefix + 'T2']);
+  return safeInt(cfg(prefix + 'T1'), DEFAULT[prefix + 'T1']);
+}
+
+function tierLabel(tierRaw) {
+  const t = String(tierRaw || '').toLowerCase();
+  if (t === 'prime') return 'Prime';
+  const n = safeInt(tierRaw, 1000);
+  if (n >= 3000) return 'T3';
+  if (n >= 2000) return 'T2';
+  return 'T1';
 }
 
 let timeLeft      = 0;
@@ -114,10 +128,6 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* ===== IDLE TEXT =====
-   Ligne 1 (alertType) : Subs/Tips/Bits/Follow selon fields
-   Ligne 2 (alertName) : "Pour ajouter du temps"
-================================================ */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
@@ -145,13 +155,15 @@ function formatTimeLabel(s) {
 }
 
 function buildRotationSlides() {
-  const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
-  const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
-  const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
+  const t1    = safeInt(cfg('timePerSubT1'),    DEFAULT.timePerSubT1);
+  const t2    = safeInt(cfg('timePerSubT2'),    DEFAULT.timePerSubT2);
+  const t3    = safeInt(cfg('timePerSubT3'),    DEFAULT.timePerSubT3);
+  const prime = safeInt(cfg('timePerSubPrime'), DEFAULT.timePerSubPrime);
   const slides = [
-    'T1 +' + formatTimeLabel(t1),
-    'T2 +' + formatTimeLabel(t2),
-    'T3 +' + formatTimeLabel(t3),
+    'T1 +'     + formatTimeLabel(t1),
+    'T2 +'     + formatTimeLabel(t2),
+    'T3 +'     + formatTimeLabel(t3),
+    'Prime +' + formatTimeLabel(prime),
   ];
   if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
   return slides;
@@ -260,7 +272,6 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
-  /* Alert box au démarrage */
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = 'Pour ajouter du temps';
 
@@ -373,29 +384,29 @@ window.addEventListener('onEventReceived', function(obj) {
     const isGift  = !!data.isgift;
     const isResub = !isGift && safeInt(data.months, 1) > 1;
     const tierRaw = data.tier || 1000;
+    const uname   = data.displayName || data.name || 'Anonyme';
     let secsToAdd = 0;
     let type      = 'sub';
-    let extra     = 'T' + (safeInt(tierRaw, 1000) / 1000);
-    const uname   = data.displayName || data.name || 'Anonyme';
+    let extra     = tierLabel(tierRaw);
 
     if (isGift) {
       if (!cfg('giftEnabled')) return;
       type = 'gift';
       const count = safeInt(data.amount, 1);
-      const key   = tierKey('timePerGift', tierRaw);
-      secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
-      extra       = 'x' + count + ' T' + (safeInt(tierRaw, 1000) / 1000);
+      /* Les gifts ne sont pas Prime, on utilise le tier normal */
+      const t = safeInt(tierRaw, 1000);
+      const key = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
+      secsToAdd = count * safeInt(cfg(key), DEFAULT[key]);
+      extra     = 'x' + count + ' ' + tierLabel(tierRaw);
       if (cfg('goalType') === 'sub') addGoal(count);
     } else if (isResub) {
       if (!cfg('resubEnabled')) return;
-      type = 'resub';
-      const key = tierKey('timePerResub', tierRaw);
-      secsToAdd = safeInt(cfg(key), DEFAULT[key]);
-      extra     = 'Mois ' + safeInt(data.months, 1) + ' • T' + (safeInt(tierRaw, 1000) / 1000);
+      type      = 'resub';
+      secsToAdd = tierSeconds('timePerResub', tierRaw);
+      extra     = 'Mois ' + safeInt(data.months, 1) + ' • ' + tierLabel(tierRaw);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
-      const key = tierKey('timePerSub', tierRaw);
-      secsToAdd = safeInt(cfg(key), DEFAULT[key]);
+      secsToAdd = tierSeconds('timePerSub', tierRaw);
       if (cfg('goalType') === 'sub') addGoal(1);
     }
 
