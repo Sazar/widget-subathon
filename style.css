@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.6 — Style
+   SUBATHON WIDGET v2.7 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -21,6 +21,7 @@
   --widget-width:    520px;
   --radius-large:    14px;  /* alert-box uniquement */
   --radius-small:    8px;   /* info-box, goal-box, timer-box */
+  --overlap:         18px;  /* chevauchement vertical des badges */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,94 +34,32 @@ body {
 }
 
 .widget-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   padding: 6px;
   width: var(--widget-width);
 }
 
-/* ===== TOP ROW ===== */
-.top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-/* INFO BOX */
-.info-box {
-  background: var(--info-bg);
-  color: var(--info-text);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  padding: 5px 16px 5px 14px;
-  border-radius: var(--radius-small);
-  box-shadow: 0 0 14px var(--glow);
-  min-width: 80px;
-  text-align: center;
-}
-
-.info-box.pop {
-  animation: popAnim 0.45s cubic-bezier(0.34,1.56,0.64,1);
-}
-
-@keyframes popAnim {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-
-/* GOAL BOX */
-.goal-box {
-  background: var(--goal-bg);
-  border-radius: var(--radius-small);
-  padding: 4px 14px 4px 12px;
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--goal-text);
-}
-
-#goalCurrent {
-  color: var(--text-accent);
-  font-size: 24px;
-}
-
-.goal-sep {
-  color: var(--text-muted);
-  font-size: 18px;
-  margin: 0 1px;
-}
-
-.goal-unit {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-left: 4px;
+/* ===== CONTENEUR PRINCIPAL ===== */
+.main-container {
+  position: relative;
+  /* Padding haut/bas pour laisser la place aux badges qui débordent */
+  padding-top: var(--overlap);
+  padding-bottom: var(--overlap);
 }
 
 /* ===== ALERT BOX ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
   border-radius: var(--radius-large);
-  padding: 18px 22px 20px;
+  padding: 28px 22px 36px;
   text-align: center;
-  min-height: 90px;
+  min-height: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .alert-type {
@@ -154,13 +93,84 @@ body {
   100% { background: rgba(14, 14, 20, 0.82); }
 }
 
-/* ===== BOTTOM ROW : Timer ===== */
-.bottom-row {
-  display: flex;
-  justify-content: flex-end;
+/* ===== INFO BOX — cheval haut gauche ===== */
+.info-box {
+  position: absolute;
+  top: 0;          /* bord haut du main-container = milieu du badge sur le bord haut de l'alert-box */
+  left: 16px;
+  z-index: 10;
+
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 5px 16px 5px 14px;
+  border-radius: var(--radius-small);
+  box-shadow: 0 0 14px var(--glow);
+  min-width: 80px;
+  text-align: center;
+  white-space: nowrap;
 }
 
+.info-box.pop {
+  animation: popAnim 0.45s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes popAnim {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ===== GOAL BOX — cheval haut droite ===== */
+.goal-box {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  z-index: 10;
+
+  background: var(--goal-bg);
+  border-radius: var(--radius-small);
+  padding: 5px 14px 5px 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--goal-text);
+  white-space: nowrap;
+}
+
+#goalCurrent {
+  color: var(--text-accent);
+  font-size: 24px;
+}
+
+.goal-sep {
+  color: var(--text-muted);
+  font-size: 18px;
+  margin: 0 1px;
+}
+
+.goal-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+
+/* ===== TIMER BOX — cheval bas droite ===== */
 .timer-box {
+  position: absolute;
+  bottom: 0;
+  right: 16px;
+  z-index: 10;
+
   background: var(--timer-bg);
   border-radius: var(--radius-small);
   padding: 5px 18px 6px;

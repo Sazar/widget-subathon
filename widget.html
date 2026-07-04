@@ -9,28 +9,31 @@
 <body>
   <div class="widget-wrapper">
 
-    <!-- LIGNE HAUTE : INFO BOX (temps ajouté) + GOAL BOX -->
-    <div class="top-row">
+    <!-- CONTENEUR PRINCIPAL : alert-box + overlays positionnés -->
+    <div class="main-container">
+
+      <!-- ALERT BOX — pleine largeur, centre -->
+      <div class="alert-box" id="alertBox">
+        <div class="alert-type" id="alertType">En attente...</div>
+        <div class="alert-name" id="alertName">–</div>
+      </div>
+
+      <!-- INFO BOX — cheval haut gauche -->
       <div class="info-box" id="infoBox">
         <span id="infoBoxText">+0 min</span>
       </div>
+
+      <!-- GOAL BOX — cheval haut droite -->
       <div class="goal-box" id="goalBox">
         <span id="goalCurrent">0</span><span class="goal-sep">/</span><span id="goalTarget">100</span>
         <span class="goal-unit" id="goalUnit">subs</span>
       </div>
-    </div>
 
-    <!-- ALERT BOX — centre, grand, dernier event -->
-    <div class="alert-box" id="alertBox">
-      <div class="alert-type" id="alertType">En attente...</div>
-      <div class="alert-name" id="alertName">–</div>
-    </div>
-
-    <!-- TIMER — petit, bas droite -->
-    <div class="bottom-row">
+      <!-- TIMER BOX — cheval bas droite -->
       <div class="timer-box">
         <div class="timer-display" id="timerDisplay">00:00:00</div>
       </div>
+
     </div>
 
   </div>
