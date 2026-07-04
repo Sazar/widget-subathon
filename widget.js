@@ -1,8 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.16 — Logique
+   SUBATHON WIDGET v2.17 — Logique
    Compatible StreamElements
-   T1/T2/T3 séparés des resubs et gifts
-   Info box : taille réglable via slider
+   Info box : animation pop UNIQUEMENT sur event réel
    ============================================= */
 
 const DEFAULT = {
@@ -115,6 +114,8 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    ROTATION INFO BOX
+   - La rotation change le texte silencieusement (pas d'animation)
+   - L'animation "pop" se déclenche UNIQUEMENT quand un vrai event ajoute du temps
    ============================================= */
 let lastEventSecs  = null;
 let rotationLocked = false;
@@ -144,7 +145,13 @@ function buildRotationSlides() {
   return slides;
 }
 
-function setInfoLine(text) {
+// Changement silencieux du texte (rotation automatique, pas d'animation)
+function setInfoLineQuiet(text) {
+  elInfoText.textContent = text;
+}
+
+// Changement avec animation pop (vrai event uniquement)
+function setInfoLineAnimate(text) {
   elInfoText.textContent = text;
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
@@ -155,7 +162,7 @@ function rotationTick() {
   if (rotationLocked) return;
   const slides = buildRotationSlides();
   rotationIndex = rotationIndex % slides.length;
-  setInfoLine(slides[rotationIndex]);
+  setInfoLineQuiet(slides[rotationIndex]);  // silencieux
   rotationIndex = (rotationIndex + 1) % slides.length;
 }
 
@@ -167,11 +174,12 @@ function startRotation() {
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
+// Appelé uniquement sur vrai event : ANIME + bloque la rotation 6s
 function showInfoBox(seconds) {
   lastEventSecs  = seconds;
   rotationLocked = true;
   rotationIndex  = 0;
-  setInfoLine('+' + formatTimeLabel(seconds));
+  setInfoLineAnimate('+' + formatTimeLabel(seconds));  // avec pop
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
