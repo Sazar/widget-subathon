@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.7 — Style
+   SUBATHON WIDGET v2.10 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -19,9 +19,9 @@
   --info-text:       #ffffff;
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
-  --radius-large:    14px;  /* alert-box uniquement */
-  --radius-small:    8px;   /* info-box, goal-box, timer-box */
-  --overlap:         18px;  /* chevauchement vertical des badges */
+  --radius-large:    14px;
+  --radius-small:    8px;
+  --overlap:         18px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,21 +29,22 @@
 body {
   background: transparent;
   font-family: 'Exo 2', sans-serif;
-  overflow: hidden;
+  overflow: visible;
   width: var(--widget-width);
 }
 
 .widget-wrapper {
   padding: 6px;
   width: var(--widget-width);
+  overflow: visible;
 }
 
 /* ===== CONTENEUR PRINCIPAL ===== */
 .main-container {
   position: relative;
-  /* Padding haut/bas pour laisser la place aux badges qui débordent */
   padding-top: var(--overlap);
   padding-bottom: var(--overlap);
+  overflow: visible;
 }
 
 /* ===== ALERT BOX ===== */
@@ -96,7 +97,7 @@ body {
 /* ===== INFO BOX — cheval haut gauche ===== */
 .info-box {
   position: absolute;
-  top: 0;          /* bord haut du main-container = milieu du badge sur le bord haut de l'alert-box */
+  top: 0;
   left: 16px;
   z-index: 10;
 
@@ -164,11 +165,13 @@ body {
   margin-left: 4px;
 }
 
-/* ===== TIMER BOX — cheval bas droite ===== */
+/* ===== TIMER BOX — cheval bas droite, décalé pour que les 2 derniers chiffres dépassent ===== */
 .timer-box {
   position: absolute;
   bottom: 0;
-  right: 16px;
+  /* right négatif = dépasse à droite hors du widget.
+     La largeur d'environ 2 chiffres + letterspacing ≈ 52px */
+  right: -48px;
   z-index: 10;
 
   background: var(--timer-bg);
