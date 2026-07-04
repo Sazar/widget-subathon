@@ -1,43 +1,35 @@
 /* =============================================
-   SUBATHON WIDGET v2.14 — Logique
+   SUBATHON WIDGET v2.15 — Logique
    Compatible StreamElements
    T1/T2/T3 séparés des resubs et gifts
+   Info box : une ligne "Tier 1 - X min"
    ============================================= */
 
 const DEFAULT = {
   initialTime:    3600,
-  // Subs par tier
   timePerSubT1:   300,
   timePerSubT2:   600,
   timePerSubT3:   900,
-  // Resubs par tier
   timePerResubT1: 180,
   timePerResubT2: 360,
   timePerResubT3: 540,
-  // Gift subs par tier
   timePerGiftT1:  300,
   timePerGiftT2:  600,
   timePerGiftT3:  900,
-  // Dons
   timePerDono:    60,
   timePerDonoPer: 5,
-  // Bits
   timePerBits:    30,
   timePerBitsPer: 100,
-  // Follow
   timePerFollow:  15,
-  // Toggles
   subEnabled:     true,
   resubEnabled:   true,
   giftEnabled:    true,
   donoEnabled:    true,
   bitsEnabled:    true,
   followEnabled:  true,
-  // Goal
   goalEnabled:    true,
   goalType:       'sub',
   goalTarget:     50,
-  // Apparence
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
@@ -96,7 +88,6 @@ function hexToRgba(hex, opacity) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-// Résout le tier Twitch (1000=T1, 2000=T2, 3000=T3) vers une clé de config
 function tierKey(prefix, tierRaw) {
   const t = safeInt(tierRaw, 1000);
   if (t >= 3000) return prefix + 'T3';
@@ -123,10 +114,10 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    ROTATION INFO BOX
-   Cycle toutes les 5s : Sub T1 → Sub T2 → Sub T3 → last event → ...
-   Suspendu 6s après un vrai event
+   Cycle toutes les 5s : "Tier 1 - X min" → "Tier 2 - X min" → "Tier 3 - X min" → retour
+   Quand un event arrive : affiche "+X min" pendant 6s puis reprend
    ============================================= */
-let lastEventText  = null;
+let lastEventSecs  = null;   // secondes du dernier event
 let rotationLocked = false;
 let rotationIndex  = 0;
 let rotationInterval = null;
@@ -139,36 +130,34 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
+// Construit les 3 slides (ou 4 si un event vient d'arriver)
 function buildRotationSlides() {
   const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
   const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
   const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
   const slides = [
-    { label: 'SUB T1', value: '+' + formatTimeLabel(t1) },
-    { label: 'SUB T2', value: '+' + formatTimeLabel(t2) },
-    { label: 'SUB T3', value: '+' + formatTimeLabel(t3) },
+    'Tier 1 - ' + formatTimeLabel(t1),
+    'Tier 2 - ' + formatTimeLabel(t2),
+    'Tier 3 - ' + formatTimeLabel(t3),
   ];
-  if (lastEventText) {
-    slides.push({ label: '▶ DERNIER', value: lastEventText });
+  if (lastEventSecs !== null) {
+    slides.push('+' + formatTimeLabel(lastEventSecs));
   }
   return slides;
 }
 
-function setInfoBoxContent(label, value) {
-  elInfoText.innerHTML =
-    `<span style="font-size:0.5em;letter-spacing:2px;opacity:0.85;display:block;line-height:1.1">${label}</span>` +
-    `<span>${value}</span>`;
+function setInfoLine(text) {
+  elInfoText.textContent = text;
+  elInfoBox.classList.remove('pop');
+  void elInfoBox.offsetWidth;
+  elInfoBox.classList.add('pop');
 }
 
 function rotationTick() {
   if (rotationLocked) return;
   const slides = buildRotationSlides();
   rotationIndex = rotationIndex % slides.length;
-  const slide = slides[rotationIndex];
-  setInfoBoxContent(slide.label, slide.value);
-  elInfoBox.classList.remove('pop');
-  void elInfoBox.offsetWidth;
-  elInfoBox.classList.add('pop');
+  setInfoLine(slides[rotationIndex]);
   rotationIndex = (rotationIndex + 1) % slides.length;
 }
 
@@ -180,14 +169,12 @@ function startRotation() {
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
+// Appelé à chaque vrai event : affiche +temps 6s puis reprend cycle depuis Tier 1
 function showInfoBox(seconds) {
-  lastEventText  = '+' + formatTimeLabel(seconds);
+  lastEventSecs  = seconds;
   rotationLocked = true;
   rotationIndex  = 0;
-  setInfoBoxContent('▶ DERNIER', lastEventText);
-  elInfoBox.classList.remove('pop');
-  void elInfoBox.offsetWidth;
-  elInfoBox.classList.add('pop');
+  setInfoLine('+' + formatTimeLabel(seconds));
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
@@ -356,7 +343,7 @@ window.addEventListener('onEventReceived', function(obj) {
       type = 'resub';
       const key = tierKey('timePerResub', tierRaw);
       secsToAdd = safeInt(cfg(key), DEFAULT[key]);
-      extra     = 'Mois ' + safeInt(data.months, 1) + ' • T' + (safeInt(tierRaw, 1000) / 1000);
+      extra     = 'Mois ' + safeInt(data.months, 1) + ' \u2022 T' + (safeInt(tierRaw, 1000) / 1000);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
       const key = tierKey('timePerSub', tierRaw);
