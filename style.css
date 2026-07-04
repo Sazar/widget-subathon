@@ -49,7 +49,16 @@ body {
 /* ===== ALERT BOX ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
-  border-radius: var(--radius-large);
+  /* coin bas-gauche coupe, autres coins arrondis */
+  border-radius: var(--radius-large) var(--radius-large) var(--radius-large) 0;
+  /* encoche triangulaire bas-gauche : decoupe ~30px x 30px */
+  clip-path: polygon(
+    0% 0%,           /* coin haut-gauche */
+    100% 0%,         /* coin haut-droite */
+    100% 100%,       /* coin bas-droite */
+    30px 100%,       /* debut de l'encoche bas */
+    0% calc(100% - 30px)  /* point de l'encoche gauche */
+  );
   padding: 28px 22px 36px;
   text-align: center;
   height: 130px;
@@ -183,9 +192,9 @@ body {
 .goal-box {
   position: absolute;
   top: 6px;
-  right: 30px;              /* symetrique a info-box left:30px */
+  right: 30px;
   z-index: 10;
-  transform: rotate(4deg);  /* symetrique a info-box rotate(-4deg) */
+  transform: rotate(4deg);
   transform-origin: top right;
 
   background: var(--goal-bg);
