@@ -1,7 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.36c-debug
-   .idle sur alertName : petit texte au démarrage
-   Retiré dès qu'un vrai event arrive
+   SUBATHON WIDGET v2.37
    ============================================= */
 
 const DEFAULT = {
@@ -388,27 +386,26 @@ window.addEventListener('onEventReceived', function(obj) {
   const data     = obj.detail.event;
   const listener = obj.detail.listener;
 
-  const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || data.months || '');
+  const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || '');
   if (eventId === _lastEventId) return;
   _lastEventId = eventId;
   setTimeout(() => { if (_lastEventId === eventId) _lastEventId = null; }, 3000);
 
   if (listener === 'subscriber-latest') {
-    /* ===== DEBUG : affiche tous les champs de data dans la console ===== */
-    console.log('[SUBATHON DEBUG] subscriber-latest data:', JSON.stringify(data));
-    /* =================================================================== */
-
     if (!cfg('subEnabled')) return;
-    const isGift  = !!data.isgift;
+
+    const isGift  = !!(data.gifted || data.isgift);
     const tierRaw = data.tier || 1000;
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
 
-    const totalMonths = safeInt(data.monthsStreak, 0)
-                     || safeInt(data.cumulativeMonths, 0)
-                     || safeInt(data.months, 0);
-
-    const isResub = !isGift && totalMonths > 1;
+    /*
+     * SE envoie le nombre de mois dans data.amount pour les subs/resubs.
+     * Pour les gift subs, data.amount = nombre de subs offerts.
+     * On distingue les deux cas avec isGift.
+     */
+    const totalMonths = isGift ? 0 : safeInt(data.amount, 0);
+    const isResub     = !isGift && totalMonths > 1;
 
     let secsToAdd   = 0;
     let type        = 'sub';
