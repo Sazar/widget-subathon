@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.4 — Style
+   SUBATHON WIDGET v2.5 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -14,13 +14,13 @@
   --timer-bg:        #e84118;
   --timer-text:      #ffffff;
   --goal-bg:         rgba(12,12,20,0.90);
-  --goal-border:     #e84118;
   --goal-text:       #ffffff;
   --info-bg:         #e84118;
   --info-text:       #ffffff;
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
-  --radius-pill:     14px;
+  --radius-large:    14px;  /* alert-box et timer */
+  --radius-small:    8px;   /* info-box et goal-box */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +57,7 @@ body {
   font-weight: 700;
   letter-spacing: 1px;
   padding: 5px 16px 5px 14px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
   min-width: 80px;
   text-align: center;
@@ -73,10 +73,10 @@ body {
   100% { transform: scale(1); }
 }
 
-/* GOAL BOX — sans bordure, sans glow */
+/* GOAL BOX */
 .goal-box {
   background: var(--goal-bg);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-small);
   padding: 4px 14px 4px 12px;
   display: flex;
   align-items: baseline;
@@ -107,10 +107,10 @@ body {
   margin-left: 4px;
 }
 
-/* ===== ALERT BOX — sans bordure ===== */
+/* ===== ALERT BOX ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-large);
   padding: 18px 22px 20px;
   text-align: center;
   min-height: 90px;
@@ -154,7 +154,7 @@ body {
   100% { background: rgba(14, 14, 20, 0.82); }
 }
 
-/* ===== BOTTOM ROW : Timer — sans glow ===== */
+/* ===== BOTTOM ROW : Timer ===== */
 .bottom-row {
   display: flex;
   justify-content: flex-end;
@@ -162,7 +162,7 @@ body {
 
 .timer-box {
   background: var(--timer-bg);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-large);
   padding: 5px 18px 6px;
   display: inline-flex;
   align-items: center;
