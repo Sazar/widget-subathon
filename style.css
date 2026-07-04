@@ -1,7 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v2.20 — Style
+   SUBATHON WIDGET v2.21 — Style
    Compatible StreamElements / OBS Browser Source
-   Info box : taille via --info-font-size injecté par JS
+   Info-box : tout en em — le slider JS change juste font-size,
+   la hauteur, le padding et les slots suivent automatiquement.
+   Position top:0 / left:16px fixe, ne bouge jamais.
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -18,7 +20,6 @@
   --goal-text:       #ffffff;
   --info-bg:         #e84118;
   --info-text:       #ffffff;
-  --info-font-size:  28px;   /* valeur par défaut, écrasée par JS */
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
   --widget-font:     'Rajdhani', sans-serif;
@@ -97,44 +98,56 @@ body {
   100% { background: rgba(14, 14, 20, 0.82); }
 }
 
-/* ===== INFO BOX — cheval haut gauche ===== */
+/* ===== INFO BOX — ancre fixe haut gauche ===== */
+/*
+  PRINCIPE : font-size est la SEULE valeur touchée par le slider.
+  Tout le reste (height, padding, slots) est exprimé en `em`
+  → tout scale proportionnellement, la boîte reste en top:0 / left:16px.
+*/
 .info-box {
+  /* Ancre fixe — NE PAS CHANGER */
   position: absolute;
   top: 0;
   left: 16px;
   z-index: 10;
 
+  /* Apparence */
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
-  font-size: var(--info-font-size);   /* UNIQUE source de vérité pour la taille */
+  font-size: 22px;           /* ← valeur par défaut, écrasée par JS */
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.04em;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
-  min-width: 60px;
-  text-align: center;
   white-space: nowrap;
-  line-height: 1;
+  text-align: center;
 
-  overflow: hidden;
+  /* Dimensions en em : suivent font-size automatiquement */
+  padding: 0.22em 0.7em;
+  min-width: 3.6em;
+  height: 1.8em;             /* hauteur = 1 ligne + padding haut/bas */
+  line-height: 1;            /* le contenu est centré via flexbox */
+
+  /* Centrage du texte dans la boîte */
   display: flex;
   align-items: center;
   justify-content: center;
-  /* height et padding injectés par JS en fonction de la taille */
+  overflow: hidden;          /* clip les slots qui sortent pendant le flip */
 }
 
-/* Les deux slots superposés */
+/* Les deux slots superposés — héritent la font-size du parent */
 .info-slot {
-  display: block;
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: inherit;        /* ← hérite de .info-box, ne jamais surcharger */
+  font-weight: inherit;
+  line-height: inherit;
   opacity: 0;
   pointer-events: none;
-  font-size: inherit;   /* hérite de .info-box */
 }
 
 .info-slot.active {
@@ -151,12 +164,12 @@ body {
 }
 
 @keyframes slotOut {
-  0%   { opacity: 1; transform: translateY(0)   rotateX(0deg); }
-  100% { opacity: 0; transform: translateY(-60%) rotateX(40deg); }
+  0%   { opacity: 1; transform: translateY(0)    rotateX(0deg); }
+  100% { opacity: 0; transform: translateY(-55%) rotateX(35deg); }
 }
 
 @keyframes slotIn {
-  0%   { opacity: 0; transform: translateY(60%)  rotateX(-40deg); }
+  0%   { opacity: 0; transform: translateY(55%)  rotateX(-35deg); }
   100% { opacity: 1; transform: translateY(0)    rotateX(0deg); }
 }
 

@@ -1,8 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v2.20 — Logique
+   SUBATHON WIDGET v2.21 — Logique
    Compatible StreamElements
-   Fix : init() appelé une seule fois (guard)
-   Fix : slider info box via CSS var sur le conteneur
+   Info-box : slider change uniquement font-size en px
+   Tout le reste (height, padding) est en em dans le CSS
+   → aucune manipulation de height/padding côté JS
    ============================================= */
 
 const DEFAULT = {
@@ -33,7 +34,7 @@ const DEFAULT = {
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
-  infoFontSize:   28,
+  infoFontSize:   22,
   widgetWidth:    '520px',
   accent:         '#e84118',
   boxBgColor:     '#0e0e14',
@@ -61,7 +62,7 @@ const GOOGLE_FONTS = {
   'Play':             'Play:wght@400;700',
 };
 
-let _initialized = false; // Guard anti-double init
+let _initialized = false;
 
 function safeInt(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
@@ -116,9 +117,7 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* =============================================
-   FLIP ROTATOR — info box
-   ============================================= */
+/* ===== FLIP ROTATOR ===== */
 let activeSlot     = elSlotA;
 let inactiveSlot   = elSlotB;
 let flipLocked     = false;
@@ -204,8 +203,7 @@ function showInfoBox(seconds) {
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
-/* ============================================= */
-
+/* ===== FONT & STYLES ===== */
 function loadFont(fontName) {
   if (fontName === 'Rajdhani') return;
   const query = GOOGLE_FONTS[fontName];
@@ -236,15 +234,13 @@ function applyTimerSize() {
 
 function applyInfoSize() {
   const size = safeInt(cfg('infoFontSize'), DEFAULT.infoFontSize);
-  // On passe la taille via CSS custom property sur le conteneur
-  // Les slots héritent via font-size: var(--info-font-size)
-  elInfoBox.style.setProperty('--info-font-size', size + 'px');
-  elInfoBox.style.height = Math.round(size * 1.6) + 'px';
-  elInfoBox.style.padding = Math.round(size * 0.18) + 'px ' + Math.round(size * 0.55) + 'px';
+  // On change SEULEMENT font-size sur .info-box
+  // Le CSS gère height (1.8em) et padding (0.22em 0.7em) en em → tout suit
+  elInfoBox.style.fontSize = size + 'px';
 }
 
 function init() {
-  if (_initialized) return; // Guard : on n'initialise qu'une seule fois
+  if (_initialized) return;
   _initialized = true;
 
   applyGlobalFont();
@@ -269,7 +265,7 @@ function init() {
 
 function goalUnitLabel() {
   const t = cfg('goalType');
-  if (t === 'dono') return '\u20ac';
+  if (t === 'dono') return '€';
   if (t === 'bits') return 'bits';
   return 'subs';
 }
@@ -333,8 +329,8 @@ function updateTimerDisplay() {
 }
 
 const TYPE_LABELS = {
-  sub:    'Nouvel Abonn\u00e9',
-  resub:  'R\u00e9abonnement',
+  sub:    'Nouvel Abonné',
+  resub:  'Réabonnement',
   gift:   'Gift Sub',
   dono:   'Nouveau Don',
   bits:   'Cheers',
@@ -355,13 +351,12 @@ function addGoal(amount) {
 }
 
 /* ===== EVENTS ===== */
-let _lastEventId = null; // Guard anti-double event SE
+let _lastEventId = null;
 
 window.addEventListener('onEventReceived', function(obj) {
   const data     = obj.detail.event;
   const listener = obj.detail.listener;
 
-  // Déduplication : SE peut envoyer le même event deux fois
   const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || data.months || '');
   if (eventId === _lastEventId) return;
   _lastEventId = eventId;
@@ -372,7 +367,6 @@ window.addEventListener('onEventReceived', function(obj) {
     const isGift  = !!data.isgift;
     const isResub = !isGift && safeInt(data.months, 1) > 1;
     const tierRaw = data.tier || 1000;
-
     let secsToAdd = 0;
     let type      = 'sub';
     let extra     = 'T' + (safeInt(tierRaw, 1000) / 1000);
@@ -391,7 +385,7 @@ window.addEventListener('onEventReceived', function(obj) {
       type = 'resub';
       const key = tierKey('timePerResub', tierRaw);
       secsToAdd = safeInt(cfg(key), DEFAULT[key]);
-      extra     = 'Mois ' + safeInt(data.months, 1) + ' \u2022 T' + (safeInt(tierRaw, 1000) / 1000);
+      extra     = 'Mois ' + safeInt(data.months, 1) + ' • T' + (safeInt(tierRaw, 1000) / 1000);
       if (cfg('goalType') === 'sub') addGoal(1);
     } else {
       const key = tierKey('timePerSub', tierRaw);
@@ -414,7 +408,7 @@ window.addEventListener('onEventReceived', function(obj) {
     if (secsToAdd > 0) addTime(secsToAdd);
     if (cfg('goalType') === 'dono') addGoal(amount);
     showInfoBox(secsToAdd || 0);
-    showAlert('dono', uname, amount + '\u20ac');
+    showAlert('dono', uname, amount + '€');
   }
 
   if (listener === 'cheer-latest') {
@@ -440,7 +434,6 @@ window.addEventListener('onEventReceived', function(obj) {
   }
 });
 
-// onWidgetLoad : reçoit fieldData puis appelle init()
 window.addEventListener('onWidgetLoad', function(obj) {
   if (obj && obj.detail && obj.detail.fieldData) {
     window.fieldData = obj.detail.fieldData;
@@ -448,5 +441,4 @@ window.addEventListener('onWidgetLoad', function(obj) {
   init();
 });
 
-// Fallback hors SE (test local) : si onWidgetLoad ne se déclenche pas dans 500ms
 setTimeout(() => { if (!_initialized) init(); }, 500);
