@@ -1,7 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.32
-   Idle text : "Subs/Tips/Bits/Follow"
-   Chaque mot lié à son field enabled
+   SUBATHON WIDGET v2.33
+   Idle : alertType = Subs/Tips/Bits/Follow
+          alertName = "Pour ajouter du temps"
    ============================================= */
 
 const DEFAULT = {
@@ -115,8 +115,8 @@ const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 /* ===== IDLE TEXT =====
-   Chaque mot apparaît uniquement si son field est actif
-   Format : "Subs/Tips/Bits/Follow" (tout collé)
+   Ligne 1 (alertType) : Subs/Tips/Bits/Follow selon fields
+   Ligne 2 (alertName) : "Pour ajouter du temps"
 ================================================ */
 function buildIdleText() {
   const parts = [];
@@ -260,8 +260,9 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
+  /* Alert box au démarrage */
   elAlertType.textContent = buildIdleText();
-  elAlertName.textContent = '–';
+  elAlertName.textContent = 'Pour ajouter du temps';
 
   updateTimerDisplay();
   startTimer();
