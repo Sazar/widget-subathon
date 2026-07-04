@@ -1,5 +1,5 @@
 {
-  "initialTime": { "type": "number", "label": "⏱ Temps initial (secondes)", "value": 3600, "step": 1, "min": 0 },
+  "initialTime": { "type": "text", "label": "⏱ Temps initial (HH:MM:SS)", "value": "01:00:00" },
 
   "subEnabled":      { "type": "checkbox", "label": "✅ Activer : Subs",                    "value": true },
   "timePerSubT1":    { "type": "number",   "label": "⏱ Secondes / Sub Tier 1",             "value": 300,  "step": 1, "min": 0 },

@@ -3,7 +3,7 @@
    ============================================= */
 
 const DEFAULT = {
-  initialTime:      3600,
+  initialTime:      '01:00:00',
   timePerSubT1:     300,
   timePerSubT2:     600,
   timePerSubT3:     900,
@@ -71,6 +71,21 @@ function safeFloat(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
   const n = parseFloat(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? fallback : n;
+}
+
+// Parse HH:MM:SS ou MM:SS ou un nombre brut de secondes -> secondes
+function parseInitialTime(val) {
+  if (val === undefined || val === null || val === '') return 3600;
+  const str = String(val).trim();
+  // Format HH:MM:SS ou MM:SS
+  if (str.includes(':')) {
+    const parts = str.split(':').map(p => parseInt(p, 10) || 0);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+  }
+  // Fallback : nombre brut de secondes
+  const n = parseInt(str, 10);
+  return isNaN(n) ? 3600 : n;
 }
 
 function cfg(key) {
@@ -142,10 +157,10 @@ function setIdle() {
 }
 
 /* ===== IDLE CYCLING ===== */
-const IDLE_DELAY  = 60 * 1000;  // 1 minute sans event avant de passer idle
-const CYCLE_DELAY = 20 * 1000;  // 20s entre chaque bascule idle <-> dernier event
+const IDLE_DELAY  = 60 * 1000;
+const CYCLE_DELAY = 20 * 1000;
 
-let lastEventState  = null;   // { type, name, bottomExtra, topTier }
+let lastEventState  = null;
 let idleTimer       = null;
 let cycleInterval   = null;
 let cycleShowIdle   = true;
@@ -160,11 +175,9 @@ function startIdleCycle() {
   if (!lastEventState) return;
 
   idleTimer = setTimeout(() => {
-    // Bascule vers idle en premier
     cycleShowIdle = true;
     setIdle();
 
-    // Puis alterne toutes les 20s
     cycleInterval = setInterval(() => {
       cycleShowIdle = !cycleShowIdle;
       if (cycleShowIdle) {
@@ -303,7 +316,7 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft    = safeInt(cfg('initialTime'), DEFAULT.initialTime);
+  timeLeft    = parseInitialTime(cfg('initialTime'));
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
 
@@ -389,7 +402,6 @@ const TYPE_LABELS = {
   follow: 'Nouveau Follow',
 };
 
-// flash=true pour les vrais events, false pour le rappel du cycle idle
 function showAlert(type, name, bottomExtra, topTier, flash = true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
