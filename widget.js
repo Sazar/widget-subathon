@@ -1,7 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v2.17 — Logique
+   SUBATHON WIDGET v2.19 — Logique
    Compatible StreamElements
-   Info box : animation pop UNIQUEMENT sur event réel
+   Info box : flip rotator entre slides
+   Pop uniquement sur vrai event
    ============================================= */
 
 const DEFAULT = {
@@ -106,21 +107,25 @@ const elAlertBox  = document.getElementById('alertBox');
 const elAlertType = document.getElementById('alertType');
 const elAlertName = document.getElementById('alertName');
 const elInfoBox   = document.getElementById('infoBox');
-const elInfoText  = document.getElementById('infoBoxText');
+const elSlotA     = document.getElementById('infoSlotA');
+const elSlotB     = document.getElementById('infoSlotB');
 const elGoalBox   = document.getElementById('goalBox');
 const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
-   ROTATION INFO BOX
-   - La rotation change le texte silencieusement (pas d'animation)
-   - L'animation "pop" se déclenche UNIQUEMENT quand un vrai event ajoute du temps
+   FLIP ROTATOR — info box
+   activeSlot  = slot actuellement visible
+   inactiveSlot = slot caché prêt à recevoir le prochain texte
    ============================================= */
-let lastEventSecs  = null;
-let rotationLocked = false;
+let activeSlot     = elSlotA;
+let inactiveSlot   = elSlotB;
+let flipLocked     = false;   // true pendant 320ms (durée du flip)
+let rotationLocked = false;   // true pendant 6s après un vrai event
 let rotationIndex  = 0;
 let rotationInterval = null;
+let lastEventSecs  = null;
 
 function formatTimeLabel(s) {
   if (s < 60)   return s + 's';
@@ -135,9 +140,9 @@ function buildRotationSlides() {
   const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
   const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
   const slides = [
-    'Tier 1 - ' + formatTimeLabel(t1),
-    'Tier 2 - ' + formatTimeLabel(t2),
-    'Tier 3 - ' + formatTimeLabel(t3),
+    'Tier 1 — ' + formatTimeLabel(t1),
+    'Tier 2 — ' + formatTimeLabel(t2),
+    'Tier 3 — ' + formatTimeLabel(t3),
   ];
   if (lastEventSecs !== null) {
     slides.push('+' + formatTimeLabel(lastEventSecs));
@@ -145,24 +150,46 @@ function buildRotationSlides() {
   return slides;
 }
 
-// Changement silencieux du texte (rotation automatique, pas d'animation)
-function setInfoLineQuiet(text) {
-  elInfoText.textContent = text;
-}
+/**
+ * flipTo(text, animate)
+ * animate=true  → effet flip (slot sort vers le haut, nouveau arrive par le bas)
+ * animate=false → swap instantané sans animation (premier affichage)
+ */
+function flipTo(text, animate) {
+  if (animate && flipLocked) return;
 
-// Changement avec animation pop (vrai event uniquement)
-function setInfoLineAnimate(text) {
-  elInfoText.textContent = text;
-  elInfoBox.classList.remove('pop');
-  void elInfoBox.offsetWidth;
-  elInfoBox.classList.add('pop');
+  inactiveSlot.textContent = text;
+
+  if (!animate) {
+    activeSlot.classList.remove('active', 'flip-out', 'flip-in');
+    inactiveSlot.classList.remove('flip-out', 'flip-in');
+    inactiveSlot.classList.add('active');
+    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    return;
+  }
+
+  flipLocked = true;
+
+  activeSlot.classList.remove('active');
+  activeSlot.classList.add('flip-out');
+
+  inactiveSlot.classList.remove('flip-out');
+  inactiveSlot.classList.add('flip-in');
+
+  setTimeout(() => {
+    activeSlot.classList.remove('flip-out');
+    inactiveSlot.classList.remove('flip-in');
+    inactiveSlot.classList.add('active');
+    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    flipLocked = false;
+  }, 320);
 }
 
 function rotationTick() {
   if (rotationLocked) return;
   const slides = buildRotationSlides();
   rotationIndex = rotationIndex % slides.length;
-  setInfoLineQuiet(slides[rotationIndex]);  // silencieux
+  flipTo(slides[rotationIndex], true);
   rotationIndex = (rotationIndex + 1) % slides.length;
 }
 
@@ -170,16 +197,24 @@ function startRotation() {
   if (rotationInterval) clearInterval(rotationInterval);
   rotationIndex  = 0;
   rotationLocked = false;
-  rotationTick();
+  const slides = buildRotationSlides();
+  flipTo(slides[0], false);
+  rotationIndex = 1;
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
-// Appelé uniquement sur vrai event : ANIME + bloque la rotation 6s
+// Appelé sur vrai event : flip animé vers le "+X min" + pop sur la boîte
 function showInfoBox(seconds) {
   lastEventSecs  = seconds;
   rotationLocked = true;
   rotationIndex  = 0;
-  setInfoLineAnimate('+' + formatTimeLabel(seconds));  // avec pop
+
+  flipTo('+' + formatTimeLabel(seconds), true);
+
+  elInfoBox.classList.remove('pop');
+  void elInfoBox.offsetWidth;
+  elInfoBox.classList.add('pop');
+
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
@@ -215,7 +250,9 @@ function applyTimerSize() {
 
 function applyInfoSize() {
   const size = safeInt(cfg('infoFontSize'), DEFAULT.infoFontSize);
-  elInfoText.style.fontSize = size + 'px';
+  elSlotA.style.fontSize = size + 'px';
+  elSlotB.style.fontSize = size + 'px';
+  elInfoBox.style.height = (size * 1.5) + 'px';
 }
 
 function init() {
