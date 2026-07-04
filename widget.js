@@ -1,6 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.30 — Logique
-   Idle text : "Subs/ Tips/ Bits" (sans Follow)
+   SUBATHON WIDGET v2.31
+   Idle text : "Subs/Tips/Bits" tout collé
+   Chaque mot disparaît si son event est désactivé
    ============================================= */
 
 const DEFAULT = {
@@ -113,17 +114,16 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* ===== IDLE TEXT alert box =====
-   Format : "Subs/ Tips/ Bits" (slash collé, sans Follow)
-   Seuls les events actifs dans fields apparaissent
+/* ===== IDLE TEXT =====
+   "Subs/Tips/Bits" - slash collé, sans espace
+   Chaque mot n'apparaît que si son event est actif
 ================================================ */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
   if (cfg('donoEnabled')) parts.push('Tips');
   if (cfg('bitsEnabled')) parts.push('Bits');
-  // Follow volontairement exclu
-  return parts.length ? parts.join('/ ') : 'Subathon';
+  return parts.length ? parts.join('/') : 'Subathon';
 }
 
 /* ===== FLIP ROTATOR ===== */
@@ -259,7 +259,6 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
-  /* Alert box au démarrage */
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = '–';
 
