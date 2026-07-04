@@ -105,10 +105,10 @@ body {
 /* ===== INFO BOX ===== */
 .info-box {
   position: absolute;
-  top: 0;
-  /* aligne sur le bord gauche de l'alert-box (qui fait 75% centree = 12.5% de marge) */
-  left: calc(12.5% + 0px);
+  top: 6px;
+  left: 2px;           /* dépasse à gauche de l'alert-box */
   z-index: 10;
+  transform: rotate(-8deg);
 
   background: var(--info-bg);
   color: var(--info-text);
@@ -173,9 +173,9 @@ body {
 
 .info-box.pop { animation: popAnim 0.45s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes popAnim {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.15); }
-  100% { transform: scale(1); }
+  0%   { transform: rotate(-8deg) scale(1); }
+  50%  { transform: rotate(-8deg) scale(1.15); }
+  100% { transform: rotate(-8deg) scale(1); }
 }
 
 /* ===== GOAL BOX ===== */
