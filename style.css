@@ -1,8 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.22 — Style
-   Compatible StreamElements / OBS Browser Source
-   Info-box : taille fixée 22px, plus de slider
-   Tout en em — position top:0/left:16px immuable
+   SUBATHON WIDGET v2.23 — Style
+   Info-box : 18px, padding 0.28em 0.9em, min-width 5em
+   Tout le texte (Tier 1 — 5 min, +5 min) reste visible
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -42,7 +41,6 @@ body {
   overflow: visible;
 }
 
-/* ===== CONTENEUR PRINCIPAL ===== */
 .main-container {
   position: relative;
   padding-top: var(--overlap);
@@ -91,13 +89,12 @@ body {
 .alert-box.flash {
   animation: flashAnim 0.5s ease;
 }
-
 @keyframes flashAnim {
   0%   { background: rgba(232,65,24,0.18); }
-  100% { background: rgba(14, 14, 20, 0.82); }
+  100% { background: rgba(14,14,20,0.82); }
 }
 
-/* ===== INFO BOX — ancre fixe haut gauche ===== */
+/* ===== INFO BOX ===== */
 .info-box {
   position: absolute;
   top: 0;
@@ -107,17 +104,17 @@ body {
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
-  font-size: 22px;       /* fixé — ne change plus */
+  font-size: 18px;          /* réduit pour que tout rentre */
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
   white-space: nowrap;
   text-align: center;
 
-  padding: 0.22em 0.7em;
-  min-width: 3.6em;
-  height: 1.8em;
+  padding: 0.28em 0.9em;    /* un peu plus de respiration horizontale */
+  min-width: 5em;           /* assez large pour "Tier 1 — 5 min" */
+  height: 1.85em;
   line-height: 1;
 
   display: flex;
@@ -126,7 +123,6 @@ body {
   overflow: hidden;
 }
 
-/* Slots flip — héritent de .info-box */
 .info-slot {
   position: absolute;
   inset: 0;
@@ -144,36 +140,32 @@ body {
   opacity: 1;
   transform: translateY(0) rotateX(0deg);
 }
-
 .info-slot.flip-out {
-  animation: slotOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: slotOut 0.28s cubic-bezier(0.4,0,1,1) forwards;
 }
-
 .info-slot.flip-in {
-  animation: slotIn 0.30s cubic-bezier(0, 0, 0.2, 1) forwards;
+  animation: slotIn 0.30s cubic-bezier(0,0,0.2,1) forwards;
 }
 
 @keyframes slotOut {
-  0%   { opacity: 1; transform: translateY(0)    rotateX(0deg); }
-  100% { opacity: 0; transform: translateY(-55%) rotateX(35deg); }
+  0%   { opacity:1; transform: translateY(0)    rotateX(0deg); }
+  100% { opacity:0; transform: translateY(-55%) rotateX(35deg); }
 }
-
 @keyframes slotIn {
-  0%   { opacity: 0; transform: translateY(55%)  rotateX(-35deg); }
-  100% { opacity: 1; transform: translateY(0)    rotateX(0deg); }
+  0%   { opacity:0; transform: translateY(55%)  rotateX(-35deg); }
+  100% { opacity:1; transform: translateY(0)    rotateX(0deg); }
 }
 
 .info-box.pop {
   animation: popAnim 0.45s cubic-bezier(0.34,1.56,0.64,1);
 }
-
 @keyframes popAnim {
   0%   { transform: scale(1); }
   50%  { transform: scale(1.18); }
   100% { transform: scale(1); }
 }
 
-/* ===== GOAL BOX — cheval haut droite ===== */
+/* ===== GOAL BOX ===== */
 .goal-box {
   position: absolute;
   top: 0;
@@ -193,27 +185,11 @@ body {
   white-space: nowrap;
 }
 
-#goalCurrent {
-  color: var(--text-accent);
-  font-size: 24px;
-}
+#goalCurrent { color: var(--text-accent); font-size: 24px; }
+.goal-sep    { color: var(--text-muted);  font-size: 18px; margin: 0 1px; }
+.goal-unit   { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-left: 4px; }
 
-.goal-sep {
-  color: var(--text-muted);
-  font-size: 18px;
-  margin: 0 1px;
-}
-
-.goal-unit {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-left: 4px;
-}
-
-/* ===== TIMER BOX — cheval bas droite ===== */
+/* ===== TIMER BOX ===== */
 .timer-box {
   position: absolute;
   bottom: 0;
@@ -235,11 +211,9 @@ body {
   letter-spacing: 3px;
   line-height: 1;
 }
-
 .timer-display.pulse {
   animation: timerPulse 0.4s ease;
 }
-
 @keyframes timerPulse {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.08); }
