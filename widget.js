@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.36c
+   SUBATHON WIDGET v2.36c-debug
    .idle sur alertName : petit texte au démarrage
    Retiré dès qu'un vrai event arrive
    ============================================= */
@@ -394,17 +394,16 @@ window.addEventListener('onEventReceived', function(obj) {
   setTimeout(() => { if (_lastEventId === eventId) _lastEventId = null; }, 3000);
 
   if (listener === 'subscriber-latest') {
+    /* ===== DEBUG : affiche tous les champs de data dans la console ===== */
+    console.log('[SUBATHON DEBUG] subscriber-latest data:', JSON.stringify(data));
+    /* =================================================================== */
+
     if (!cfg('subEnabled')) return;
     const isGift  = !!data.isgift;
     const tierRaw = data.tier || 1000;
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
 
-    /*
-     * Nombre de mois : on lit monthsStreak en priorité (cumul total SE),
-     * puis months, puis cumumulativeMonths comme dernière chance.
-     * On l'affiche dès qu'il est >= 1.
-     */
     const totalMonths = safeInt(data.monthsStreak, 0)
                      || safeInt(data.cumulativeMonths, 0)
                      || safeInt(data.months, 0);
@@ -422,7 +421,7 @@ window.addEventListener('onEventReceived', function(obj) {
       const t     = safeInt(tierRaw, 1000);
       const key   = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
       secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
-      bottomExtra = 'x' + count;  /* pour gift : nombre de subs offerts */
+      bottomExtra = 'x' + count;
       if (cfg('goalType') === 'sub') addGoal(count);
     } else if (isResub) {
       if (!cfg('resubEnabled')) return;
