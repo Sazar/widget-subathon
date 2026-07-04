@@ -1,6 +1,6 @@
 /* =============================================
-   SUBATHON WIDGET v2.27
-   Info-box : 100x24px, font 12px
+   SUBATHON WIDGET v2.35
+   alert-name idle réduit via classe .idle
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -81,6 +81,15 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  transition: font-size 0.2s ease;
+}
+
+/* Taille réduite pour le texte idle "Pour ajouter du temps" */
+.alert-name.idle {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
 }
 
 .alert-box.flash { animation: flashAnim 0.5s ease; }
