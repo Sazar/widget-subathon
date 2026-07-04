@@ -1,6 +1,6 @@
 /* =============================================
-   SUBATHON WIDGET v2.25
-   Info-box : taille fixe, flip stable sans jump
+   SUBATHON WIDGET v2.26
+   Info-box : 130x24px, font 12px
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -89,12 +89,7 @@ body {
   100% { background: rgba(14,14,20,0.82); }
 }
 
-/* ===== INFO BOX =====
-   Dimensions fixes : la boîte ne bouge/resize JAMAIS
-   Les deux slots sont absolute dans le track
-   Le track a une taille fixe en px, overflow:hidden
-   pour clipper l'animation sans affecter la boîte
-============================================= */
+/* ===== INFO BOX ===== */
 .info-box {
   position: absolute;
   top: 0;
@@ -104,25 +99,23 @@ body {
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   white-space: nowrap;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
 
-  /* Taille FIXE — ne change jamais */
-  width: 160px;
-  height: 30px;
+  width: 130px;
+  height: 24px;
   padding: 0;
 
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;   /* clip interne uniquement */
+  overflow: hidden;
 }
 
-/* Track = zone de clip pour l'animation flip */
 .info-flip-track {
   position: relative;
   width: 100%;
@@ -133,14 +126,13 @@ body {
   justify-content: center;
 }
 
-/* Les deux slots sont TOUJOURS absolute, jamais relative */
 .info-slot {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   opacity: 0;
@@ -153,12 +145,8 @@ body {
   transform: translateY(0);
 }
 
-.info-slot.flip-out {
-  animation: slotOut 0.25s cubic-bezier(0.4,0,1,1) forwards;
-}
-.info-slot.flip-in {
-  animation: slotIn 0.28s cubic-bezier(0,0,0.2,1) forwards;
-}
+.info-slot.flip-out { animation: slotOut 0.25s cubic-bezier(0.4,0,1,1) forwards; }
+.info-slot.flip-in  { animation: slotIn  0.28s cubic-bezier(0,0,0.2,1)  forwards; }
 
 @keyframes slotOut {
   0%   { opacity: 1; transform: translateY(0);     }
