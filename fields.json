@@ -46,21 +46,21 @@
     }
   },
 
-  "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",                        "value": "520px" },
-  "accent":        { "type": "color",  "label": "🎨 Couleur accent",                        "value": "#e84118" },
+  "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",              "value": "520px" },
+  "accent":        { "type": "color",  "label": "🎨 Couleur accent",              "value": "#e84118" },
 
-  "boxBgColor":    { "type": "color",  "label": "🎨 Alert Box — couleur fond",              "value": "#0e0e14" },
-  "boxBgOpacity":  { "type": "number", "label": "🎨 Alert Box — opacité fond (0-100)",    "value": 82,  "step": 1, "min": 0 },
+  "boxBgColor":    { "type": "color",  "label": "🎨 Alert Box — couleur fond",     "value": "#0e0e14" },
+  "boxBgOpacity":  { "type": "slider", "label": "🎨 Alert Box — opacité fond",    "value": 82, "min": 0, "max": 100, "steps": 1 },
 
-  "timerBg":       { "type": "color",  "label": "🎨 Timer — fond",                          "value": "#e84118" },
-  "timerText":     { "type": "color",  "label": "🎨 Timer — texte",                         "value": "#ffffff" },
+  "timerBg":       { "type": "color",  "label": "🎨 Timer — fond",                 "value": "#e84118" },
+  "timerText":     { "type": "color",  "label": "🎨 Timer — texte",                "value": "#ffffff" },
 
-  "goalBgColor":   { "type": "color",  "label": "🎨 Goal Box — couleur fond",               "value": "#0c0c14" },
-  "goalBgOpacity": { "type": "number", "label": "🎨 Goal Box — opacité fond (0-100)",     "value": 90,  "step": 1, "min": 0 },
-  "goalText":      { "type": "color",  "label": "🎨 Goal Box — texte",                      "value": "#ffffff" },
+  "goalBgColor":   { "type": "color",  "label": "🎨 Goal Box — couleur fond",      "value": "#0c0c14" },
+  "goalBgOpacity": { "type": "slider", "label": "🎨 Goal Box — opacité fond",     "value": 90, "min": 0, "max": 100, "steps": 1 },
+  "goalText":      { "type": "color",  "label": "🎨 Goal Box — texte",             "value": "#ffffff" },
 
-  "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",                       "value": "#e84118" },
-  "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",                      "value": "#ffffff" },
-  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",              "value": "#e84118" },
-  "glowOpacity":   { "type": "number", "label": "🎨 Info Box — intensité glow (0-100)",   "value": 45,  "step": 1, "min": 0 }
+  "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",              "value": "#e84118" },
+  "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",             "value": "#ffffff" },
+  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",     "value": "#e84118" },
+  "glowOpacity":   { "type": "slider", "label": "🎨 Info Box — intensité glow",  "value": 45, "min": 0, "max": 100, "steps": 1 }
 }
