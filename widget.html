@@ -9,28 +9,29 @@
 <body>
   <div class="widget-wrapper">
 
-    <!-- GOAL BOX -->
-    <div class="goal-box" id="goalBox">
-      <div class="goal-label" id="goalLabel">Objectif</div>
-      <div class="goal-bar-bg">
-        <div class="goal-bar-fill" id="goalBarFill"></div>
+    <!-- LIGNE HAUTE : INFO BOX (temps ajouté) + GOAL BOX -->
+    <div class="top-row">
+      <div class="info-box" id="infoBox">
+        <span id="infoBoxText">+0 min</span>
       </div>
-      <div class="goal-values">
-        <span id="goalCurrent">0</span>
-        <span>/</span>
-        <span id="goalTarget">100</span>
-        <span id="goalUnit">subs</span>
+      <div class="goal-box" id="goalBox">
+        <span id="goalCurrent">0</span><span class="goal-sep">/</span><span id="goalTarget">100</span>
+        <span class="goal-unit" id="goalUnit">subs</span>
       </div>
     </div>
 
-    <!-- TIMER -->
-    <div class="timer-box">
-      <div class="timer-label">SUBATHON</div>
-      <div class="timer-display" id="timerDisplay">00:00:00</div>
+    <!-- ALERT BOX — centre, grand, dernier event -->
+    <div class="alert-box" id="alertBox">
+      <div class="alert-type" id="alertType">En attente...</div>
+      <div class="alert-name" id="alertName">–</div>
     </div>
 
-    <!-- EVENT FEED -->
-    <div class="event-feed" id="eventFeed"></div>
+    <!-- TIMER — petit, bas droite -->
+    <div class="bottom-row">
+      <div class="timer-box">
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+      </div>
+    </div>
 
   </div>
   <script src="widget.js"></script>

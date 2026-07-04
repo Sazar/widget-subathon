@@ -1,22 +1,35 @@
 # 🎮 Widget Subathon — StreamElements
 
 Widget de **Subathon / Mégathon** pour Twitch, compatible **StreamElements** et **OBS** (Browser Source).  
-Il affiche un **timer à rebours**, une **barre de progression (goal box)**, et un **feed d'événements** qui montre en temps réel les subs, dons, bits et follows — ainsi que le temps qu'ils ajoutent.
+Design inspiré du style Volkner : **Alert Box** grande au centre, **Goal Box** en haut à droite (chiffres uniquement), **Info Box** en haut à gauche (temps ajouté), **Timer** petit en bas à droite.
+
+---
+
+## 🗺 Layout du widget
+
+```
+┌─────────────────────────────────────────────┐
+│  [+5 min]              [$1500/2000 subs]     │
+│                                              │
+│         New Tier 1 Subscriber                │
+│              volkner - x12                   │
+│                                              │
+│                              [01:23:45]      │
+└─────────────────────────────────────────────┘
+   ①  Info Box            ② Goal Box
+   ③  Alert Box (centre)  ④ Timer (bas droite)
+```
 
 ---
 
 ## ✨ Fonctionnalités
 
-| Fonctionnalité | Détail |
+| Zone | Description |
 |---|---|
-| ⏱ **Timer configurable** | Temps initial réglable, compte à rebours en temps réel |
-| 🌟 **Subs** | Nouveaux subs, resubs et gift subs — chacun ajoute un temps paramétrable |
-| 💰 **Dons / Tips** | Ajout de temps proportionnel au montant donné (tranche configurable) |
-| 💎 **Bits / Cheers** | Ajout de temps par tranche de bits (ex : 30s / 100 bits) |
-| ❤️ **Follows** | Ajout de temps par follow |
-| 🎯 **Goal Box** | Barre de progression avec objectif en Subs, Dons ou Bits |
-| 📢 **Feed d'événements** | Affiche chaque événement avec nom, type et temps ajouté |
-| 🎨 **Personnalisation complète** | Couleurs, tailles, timing — tout via les champs StreamElements |
+| ① **Info Box** | Badge rouge en haut gauche — affiche le temps ajouté par l'événement (ex: `+5 min`) |
+| ② **Goal Box** | Haut droite — affiche `valeur actuelle / objectif` sans barre, en chiffres |
+| ③ **Alert Box** | Centre dominant — affiche le type d'événement + le pseudo + quantité (ex: `volkner - x12`) |
+| ④ **Timer** | Petit badge rouge en bas droite — compte à rebours `HH:MM:SS` |
 
 ---
 
@@ -25,8 +38,8 @@ Il affiche un **timer à rebours**, une **barre de progression (goal box)**, et 
 ```
 widget-subathon/
 ├── widget.html     ← Structure HTML du widget
-├── style.css       ← Styles visuels (thème violet/néon)
-├── widget.js       ← Logique : timer, events, goal bar
+├── style.css       ← Styles visuels (thème rouge/noir)
+├── widget.js       ← Logique : timer, events, goal
 ├── fields.json     ← Champs de config StreamElements
 └── README.md       ← Ce fichier
 ```
@@ -43,28 +56,26 @@ widget-subathon/
 
 ### Étape 2 — Coller les fichiers
 
-Dans l'éditeur du Custom Widget, tu trouveras 4 onglets :
-
-| Onglet | Fichier à coller |
+| Onglet SE | Fichier à coller |
 |---|---|
 | **HTML** | Contenu de `widget.html` |
 | **CSS** | Contenu de `style.css` |
 | **JS** | Contenu de `widget.js` |
 | **Fields** | Contenu de `fields.json` |
 
-> ⚠️ Copie **tout le contenu** de chaque fichier, y compris les balises HTML dans l'onglet HTML.
+> ⚠️ Copie **tout le contenu** de chaque fichier.
 
 ### Étape 3 — Configurer via les Fields
 
-Une fois les fichiers collés, clique sur **Done** puis ouvre les paramètres du widget (icône engrenage).  
-Tu verras tous les champs configurables classés par catégorie.
+Une fois les fichiers collés, clique sur **Done** puis ouvre les paramètres du widget (⚙️).  
+Tous les champs sont configurables sans toucher au code.
 
 ### Étape 4 — Ajouter dans OBS
 
 1. Dans OBS, ajoute une **Browser Source**
 2. Colle l'URL de ton overlay StreamElements
-3. Règle la taille sur **420 × 380** px (ou adapte selon ta mise en scène)
-4. Coche **"Shutdown source when not visible"** et **"Refresh browser when scene becomes active"**
+3. Taille recommandée : **520 × 230 px**
+4. Coche **"Refresh browser when scene becomes active"**
 
 ---
 
@@ -74,104 +85,102 @@ Tu verras tous les champs configurables classés par catégorie.
 
 | Champ | Description | Défaut |
 |---|---|---|
-| `initialTime` | Temps de départ du timer (en secondes) | `3600` (1h) |
-| `timerFontSize` | Taille de la police du timer | `72px` |
-| `widgetWidth` | Largeur totale du widget | `420px` |
+| `initialTime` | Temps de départ (secondes) | `3600` (1h) |
+| `widgetWidth` | Largeur totale du widget | `520px` |
 
 ### 🌟 Subs
 
 | Champ | Description | Défaut |
 |---|---|---|
 | `subEnabled` | Activer les subs | ✅ |
-| `timePerSub` | Secondes ajoutées par nouveau sub | `300` (5 min) |
+| `timePerSub` | Secondes par nouveau sub | `300` (5 min) |
 | `resubEnabled` | Activer les resubs | ✅ |
-| `timePerResub` | Secondes ajoutées par resub | `180` (3 min) |
+| `timePerResub` | Secondes par resub | `180` (3 min) |
 | `giftEnabled` | Activer les gift subs | ✅ |
-| `timePerGift` | Secondes ajoutées par gift sub (× nombre de gifts) | `300` (5 min) |
+| `timePerGift` | Secondes par gift sub (× nombre) | `300` (5 min) |
 
 ### 💰 Dons / Tips
 
 | Champ | Description | Défaut |
 |---|---|---|
 | `donoEnabled` | Activer les dons | ✅ |
-| `timePerDono` | Secondes ajoutées par tranche de don | `60` (1 min) |
-| `timePerDonoPer` | Tranche de don en € | `5` (5€ = +1 min) |
+| `timePerDono` | Secondes par tranche | `60` (1 min) |
+| `timePerDonoPer` | Tranche en € | `5` (5€ = +1 min) |
 
-**Exemple :** Don de 15€ → 3 tranches × 60s = **+3 minutes**
+**Exemple :** Don de 15€ → 3 × 60s = **+3 minutes**
 
 ### 💎 Bits / Cheers
 
 | Champ | Description | Défaut |
 |---|---|---|
 | `bitsEnabled` | Activer les bits | ✅ |
-| `timePerBits` | Secondes ajoutées par tranche de bits | `30` |
+| `timePerBits` | Secondes par tranche | `30` |
 | `timePerBitsPer` | Tranche de bits | `100` (100 bits = +30s) |
 
-**Exemple :** 500 bits → 5 tranches × 30s = **+2 minutes 30**
+**Exemple :** 500 bits → 5 × 30s = **+2min30**
 
 ### ❤️ Follows
 
 | Champ | Description | Défaut |
 |---|---|---|
 | `followEnabled` | Activer les follows | ✅ |
-| `timePerFollow` | Secondes ajoutées par follow | `15` |
+| `timePerFollow` | Secondes par follow | `15` |
 
 ### 🎯 Goal Box
 
 | Champ | Description | Défaut |
 |---|---|---|
 | `goalEnabled` | Afficher la goal box | ✅ |
-| `goalLabel` | Titre affiché | `Objectif Subs` |
-| `goalType` | Type de goal : `sub`, `dono`, `bits` | `sub` |
-| `goalTarget` | Objectif à atteindre | `50` |
+| `goalType` | Type : `sub`, `dono`, `bits` | `sub` |
+| `goalTarget` | Objectif cible | `50` |
 
 ### 🎨 Couleurs
 
-Toutes les couleurs sont personnalisables depuis les Fields :
-
-- Fond, bordure et texte du **timer**
-- Fond, bordure, barre de progression du **goal box**
-- Fond, bordure, texte, accent des **événements**
-- Couleur du **temps ajouté** (vert par défaut)
-- Couleur du **glow/néon** (violet par défaut)
-
-> Les fonds acceptent la notation `rgba()` pour la transparence.  
-> La barre de progression accepte un **gradient CSS** complet.
+| Champ | Description | Défaut |
+|---|---|---|
+| `accent` | Couleur accent principale | `#e84118` (rouge-orange) |
+| `accentDark` | Accent foncé | `#b83010` |
+| `boxBg` | Fond Alert Box | `rgba(12,12,20,0.88)` |
+| `boxBorder` | Bordure Alert Box | `#e84118` |
+| `timerBg` | Fond Timer | `#e84118` |
+| `timerText` | Texte Timer | `#ffffff` |
+| `goalBg` | Fond Goal Box | `rgba(12,12,20,0.90)` |
+| `goalBorder` | Bordure Goal Box | `#e84118` |
+| `infoBg` | Fond Info Box | `#e84118` |
+| `glow` | Couleur lueür | `rgba(232,65,24,0.45)` |
 
 ---
 
 ## 🧩 Fonctionnement technique
 
-- Le widget écoute les événements **StreamElements** via `window.addEventListener('onEventReceived', ...)`
-- La configuration est lue depuis `fieldData` (injecté par SE) avec fallback sur les valeurs par défaut
-- Le timer tourne côté client (JS `setInterval`)
-- Le feed d'événements affiche les 3 derniers événements, avec animation d'entrée/sortie
-- Compatible **Twitch** uniquement pour les dons (StreamElements doit être la plateforme de dons)
+- Le widget écoute les événements **StreamElements** via `onEventReceived`
+- **Info Box** : badge en haut gauche qui affiche le temps ajouté à chaque event (animation pop)
+- **Alert Box** : affiche le dernier événement avec type (`New Tier 1 Subscriber`) + `pseudo - xN` — animation flash
+- **Goal Box** : affiche `valeur/objectif` en chiffres uniquement, sans barre de progression
+- **Timer** : petit badge rouge bas droite, count-down JS, animation pulse quand le temps augmente
+- Configuration via `fieldData` (injecté par SE) avec fallback sur les valeurs par défaut
 
 ---
 
 ## 🔄 Changelog
 
+### v2.0.0 — 2026-07-04
+- 🎨 Refonte complète du layout — inspiré du style Volkner
+- ① Info Box : badge "+X min" haut gauche avec animation pop
+- ② Goal Box : chiffres uniquement (sans barre), haut droite
+- ③ Alert Box : grande zone centrale avec type + pseudo + quantité
+- ④ Timer : petit badge compact, bas droite
+- Thème rouge-noir par défaut (accent `#e84118`)
+- Suppression de l'ancien event feed scroll
+
 ### v1.0.0 — 2026-07-04
-- 🎉 Version initiale
-- Timer avec compte à rebours
-- Support Subs, Resubs, Gift Subs, Dons, Bits, Follows
-- Goal Box (Subs / Dons / Bits)
-- Feed d'événements animé (3 derniers)
-- Personnalisation complète via Fields StreamElements
-- Thème néon violet par défaut
+- Version initiale (timer + event feed + goal bar)
 
 ---
 
 ## 📝 Notes
 
-- **Dons uniquement via StreamElements** : pour que les dons soient détectés, tu dois utiliser SE comme processeur de dons (StreamElements Tip Page).
-- **Bits** : les Cheers Twitch sont détectés automatiquement.
-- **Refresh manuel** : le timer repart depuis la valeur `initialTime` à chaque refresh de la page. Pour persister entre sessions, note le temps restant et mets à jour `initialTime` manuellement.
-
----
-
-## 👤 Auteur
-
-Widget créé pour la communauté Twitch francophone.  
-Pour toute modification ou personnalisation supplémentaire, ouvrez une issue sur ce repo.
+- **Dons** : uniquement via **StreamElements Tip Page**
+- **Bits** : Cheers Twitch détectés automatiquement
+- **Taille OBS recommandée** : 520 × 230 px
+- **Refresh manuel** : le timer repart de `initialTime` à chaque refresh
