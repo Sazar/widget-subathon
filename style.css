@@ -1,6 +1,6 @@
 /* =============================================
-   SUBATHON WIDGET v2.24
-   Info-box : 14px, largeur auto, overflow visible
+   SUBATHON WIDGET v2.25
+   Info-box : taille fixe, flip stable sans jump
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -90,11 +90,11 @@ body {
 }
 
 /* ===== INFO BOX =====
-   - position fixe top:0 left:16px
-   - largeur : s'adapte au contenu (pas de min-width fixe)
-   - overflow visible : rien ne sera coupé
-   - les slots sont inline-block, pas absolute
-================================================ */
+   Dimensions fixes : la boîte ne bouge/resize JAMAIS
+   Les deux slots sont absolute dans le track
+   Le track a une taille fixe en px, overflow:hidden
+   pour clipper l'animation sans affecter la boîte
+============================================= */
 .info-box {
   position: absolute;
   top: 0;
@@ -107,60 +107,72 @@ body {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
+  white-space: nowrap;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
-  white-space: nowrap;
 
-  padding: 6px 14px;
-  /* pas de height ni min-width fixés : la boite s'adapte au texte */
+  /* Taille FIXE — ne change jamais */
+  width: 160px;
+  height: 30px;
+  padding: 0;
+
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  overflow: visible;
+  justify-content: center;
+  overflow: hidden;   /* clip interne uniquement */
 }
 
-/* Conteneur interne pour le flip : height = 1 ligne de texte */
+/* Track = zone de clip pour l'animation flip */
 .info-flip-track {
   position: relative;
-  height: 1.15em;    /* juste la hauteur d'une ligne */
-  overflow: hidden;  /* masque le slot qui sort/entre */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
+/* Les deux slots sont TOUJOURS absolute, jamais relative */
 .info-slot {
   position: absolute;
-  top: 0; left: 0;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
   white-space: nowrap;
-  font-size: inherit;
-  font-weight: inherit;
   opacity: 0;
   pointer-events: none;
+  transform: translateY(0);
 }
 
-/* slot visible : position relative pour que le track suive sa largeur */
 .info-slot.active {
-  position: relative;
   opacity: 1;
   transform: translateY(0);
 }
 
-.info-slot.flip-out { animation: slotOut 0.28s cubic-bezier(0.4,0,1,1) forwards; }
-.info-slot.flip-in  { animation: slotIn  0.30s cubic-bezier(0,0,0.2,1)  forwards; }
+.info-slot.flip-out {
+  animation: slotOut 0.25s cubic-bezier(0.4,0,1,1) forwards;
+}
+.info-slot.flip-in {
+  animation: slotIn 0.28s cubic-bezier(0,0,0.2,1) forwards;
+}
 
 @keyframes slotOut {
-  0%   { opacity:1; transform: translateY(0);    }
-  100% { opacity:0; transform: translateY(-60%); }
+  0%   { opacity: 1; transform: translateY(0);     }
+  100% { opacity: 0; transform: translateY(-100%); }
 }
 @keyframes slotIn {
-  0%   { opacity:0; transform: translateY(60%);  }
-  100% { opacity:1; transform: translateY(0);    }
+  0%   { opacity: 0; transform: translateY(100%);  }
+  100% { opacity: 1; transform: translateY(0);     }
 }
 
 .info-box.pop { animation: popAnim 0.45s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes popAnim {
   0%   { transform: scale(1); }
-  50%  { transform: scale(1.18); }
+  50%  { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
 
@@ -170,7 +182,6 @@ body {
   top: 0;
   right: 16px;
   z-index: 10;
-
   background: var(--goal-bg);
   border-radius: var(--radius-small);
   padding: 5px 14px 5px 12px;
@@ -194,7 +205,6 @@ body {
   bottom: 0;
   right: -48px;
   z-index: 10;
-
   background: var(--timer-bg);
   border-radius: var(--radius-small);
   padding: 5px 18px 6px;
