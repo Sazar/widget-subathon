@@ -1,6 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.36
-   Goal box : tailles réduites
+   SUBATHON WIDGET v2.37
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -53,14 +52,14 @@ body {
   border-radius: var(--radius-large);
   padding: 28px 22px 36px;
   text-align: center;
-  min-height: 110px;
+  height: 130px;        /* hauteur fixe — ne grandit jamais */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   position: relative;
-  overflow: visible;
+  overflow: hidden;     /* contenu tronqué, pas d'agrandissement */
 }
 
 .alert-type {
@@ -69,6 +68,10 @@ body {
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--text-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .alert-name {
