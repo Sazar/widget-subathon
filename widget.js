@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.3 — Logique
+   SUBATHON WIDGET v2.8 — Logique
    Compatible StreamElements
    ============================================= */
 
@@ -26,20 +26,19 @@ const DEFAULT = {
   alertFont:      'Exo 2',
   widgetWidth:    '520px',
   accent:         '#e84118',
-  accentDark:     '#b83010',
-  boxBg:          'rgba(14,14,20,0.82)',
-  boxBorder:      '#e84118',
+  boxBgColor:     '#0e0e14',
+  boxBgOpacity:   82,
   timerBg:        '#e84118',
   timerText:      '#ffffff',
-  goalBg:         'rgba(12,12,20,0.90)',
-  goalBorder:     '#e84118',
+  goalBgColor:    '#0c0c14',
+  goalBgOpacity:  90,
   goalText:       '#ffffff',
   infoBg:         '#e84118',
   infoText:       '#ffffff',
-  glow:           'rgba(232,65,24,0.45)',
+  glowColor:      '#e84118',
+  glowOpacity:    45,
 };
 
-// Polices disponibles — chargées dynamiquement si sélectionnées
 const GOOGLE_FONTS = {
   'Oswald':           'Oswald:wght@400;600;700',
   'Bebas Neue':       'Bebas+Neue',
@@ -70,6 +69,16 @@ function cfg(key) {
   return DEFAULT[key];
 }
 
+// Convertit une couleur hex + opacité (0-100) en rgba
+function hexToRgba(hex, opacity) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const a = Math.round(Math.min(100, Math.max(0, opacity))) / 100;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 let timeLeft      = 0;
 let running       = false;
 let goalCurrent   = 0;
@@ -88,11 +97,9 @@ const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 function loadFont(fontName) {
-  // Rajdhani et Exo 2 sont déjà dans le CSS de base
   if (fontName === 'Exo 2' || fontName === 'Rajdhani') return;
   const query = GOOGLE_FONTS[fontName];
   if (!query) return;
-  // Vérifie si déjà chargé
   const existing = document.querySelector(`link[data-font="${fontName}"]`);
   if (existing) return;
   const link = document.createElement('link');
@@ -136,25 +143,28 @@ function goalUnitLabel() {
 
 function applyColors() {
   const r = document.documentElement;
+
+  const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
+  const goalBg = hexToRgba(cfg('goalBgColor'), safeInt(cfg('goalBgOpacity'), DEFAULT.goalBgOpacity));
+  const glow   = hexToRgba(cfg('glowColor'),   safeInt(cfg('glowOpacity'),   DEFAULT.glowOpacity));
+
   const map = {
     '--widget-width': cfg('widgetWidth'),
     '--accent':       cfg('accent'),
-    '--accent-dark':  cfg('accentDark'),
-    '--box-bg':       cfg('boxBg'),
-    '--box-border':   cfg('boxBorder'),
+    '--text-accent':  cfg('accent'),
     '--timer-bg':     cfg('timerBg'),
     '--timer-text':   cfg('timerText'),
-    '--goal-bg':      cfg('goalBg'),
-    '--goal-border':  cfg('goalBorder'),
+    '--goal-bg':      goalBg,
     '--goal-text':    cfg('goalText'),
     '--info-bg':      cfg('infoBg'),
     '--info-text':    cfg('infoText'),
-    '--glow':         cfg('glow'),
-    '--text-accent':  cfg('accent'),
+    '--glow':         glow,
   };
   for (const [k, v] of Object.entries(map)) {
     if (v) r.style.setProperty(k, v);
   }
+  // Alert box background appliqué directement sur l'élément
+  elAlertBox.style.background = boxBg;
 }
 
 function startTimer() {

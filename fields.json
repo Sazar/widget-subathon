@@ -46,15 +46,21 @@
     }
   },
 
-  "widgetWidth": { "type": "text",  "label": "📐 Largeur widget",          "value": "520px" },
-  "accent":      { "type": "color", "label": "🎨 Couleur accent",          "value": "#e84118" },
-  "accentDark":  { "type": "color", "label": "🎨 Accent foncé",            "value": "#b83010" },
-  "boxBg":       { "type": "text",  "label": "🎨 Fond Alert Box (rgba)",   "value": "rgba(14,14,20,0.82)" },
-  "timerBg":     { "type": "color", "label": "🎨 Fond Timer",              "value": "#e84118" },
-  "timerText":   { "type": "color", "label": "🎨 Texte Timer",             "value": "#ffffff" },
-  "goalBg":      { "type": "text",  "label": "🎨 Fond Goal Box (rgba)",    "value": "rgba(12,12,20,0.90)" },
-  "goalText":    { "type": "color", "label": "🎨 Texte Goal Box",          "value": "#ffffff" },
-  "infoBg":      { "type": "color", "label": "🎨 Fond Info Box",           "value": "#e84118" },
-  "infoText":    { "type": "color", "label": "🎨 Texte Info Box",          "value": "#ffffff" },
-  "glow":        { "type": "text",  "label": "🎨 Glow Info Box (rgba)",   "value": "rgba(232,65,24,0.45)" }
+  "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",              "value": "520px" },
+  "accent":        { "type": "color",  "label": "🎨 Couleur accent",              "value": "#e84118" },
+
+  "boxBgColor":    { "type": "color",  "label": "🎨 Alert Box — couleur fond",     "value": "#0e0e14" },
+  "boxBgOpacity":  { "type": "slider", "label": "🎨 Alert Box — opacité fond",    "value": 82, "min": 0, "max": 100, "steps": 1 },
+
+  "timerBg":       { "type": "color",  "label": "🎨 Timer — fond",                 "value": "#e84118" },
+  "timerText":     { "type": "color",  "label": "🎨 Timer — texte",                "value": "#ffffff" },
+
+  "goalBgColor":   { "type": "color",  "label": "🎨 Goal Box — couleur fond",      "value": "#0c0c14" },
+  "goalBgOpacity": { "type": "slider", "label": "🎨 Goal Box — opacité fond",     "value": 90, "min": 0, "max": 100, "steps": 1 },
+  "goalText":      { "type": "color",  "label": "🎨 Goal Box — texte",             "value": "#ffffff" },
+
+  "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",              "value": "#e84118" },
+  "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",             "value": "#ffffff" },
+  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",     "value": "#e84118" },
+  "glowOpacity":   { "type": "slider", "label": "🎨 Info Box — intensité glow",  "value": 45, "min": 0, "max": 100, "steps": 1 }
 }
