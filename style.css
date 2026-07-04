@@ -46,19 +46,19 @@ body {
   overflow: visible;
 }
 
+/* SVG clip-path pour l'encoche arrondie bas-gauche */
+.alert-box-clip {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 /* ===== ALERT BOX ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
-  /* coin bas-gauche coupe, autres coins arrondis */
-  border-radius: var(--radius-large) var(--radius-large) var(--radius-large) 0;
-  /* encoche triangulaire bas-gauche : decoupe ~30px x 30px */
-  clip-path: polygon(
-    0% 0%,           /* coin haut-gauche */
-    100% 0%,         /* coin haut-droite */
-    100% 100%,       /* coin bas-droite */
-    30px 100%,       /* debut de l'encoche bas */
-    0% calc(100% - 30px)  /* point de l'encoche gauche */
-  );
+  border-radius: var(--radius-large);
+  /* arc concave bas-gauche via clip-path SVG */
+  clip-path: url(#alertBoxClip);
   padding: 28px 22px 36px;
   text-align: center;
   height: 130px;
