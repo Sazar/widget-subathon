@@ -1,7 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.31
-   Idle text : "Subs/Tips/Bits" tout collé
-   Chaque mot disparaît si son event est désactivé
+   SUBATHON WIDGET v2.32
+   Idle text : "Subs/Tips/Bits/Follow"
+   Chaque mot lié à son field enabled
    ============================================= */
 
 const DEFAULT = {
@@ -115,14 +115,15 @@ const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 /* ===== IDLE TEXT =====
-   "Subs/Tips/Bits" - slash collé, sans espace
-   Chaque mot n'apparaît que si son event est actif
+   Chaque mot apparaît uniquement si son field est actif
+   Format : "Subs/Tips/Bits/Follow" (tout collé)
 ================================================ */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
-  if (cfg('donoEnabled')) parts.push('Tips');
-  if (cfg('bitsEnabled')) parts.push('Bits');
+  if (cfg('donoEnabled'))   parts.push('Tips');
+  if (cfg('bitsEnabled'))   parts.push('Bits');
+  if (cfg('followEnabled')) parts.push('Follow');
   return parts.length ? parts.join('/') : 'Subathon';
 }
 
