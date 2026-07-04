@@ -1,8 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v2.15 — Logique
+   SUBATHON WIDGET v2.16 — Logique
    Compatible StreamElements
    T1/T2/T3 séparés des resubs et gifts
-   Info box : une ligne "Tier 1 - X min"
+   Info box : taille réglable via slider
    ============================================= */
 
 const DEFAULT = {
@@ -33,6 +33,7 @@ const DEFAULT = {
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
+  infoFontSize:   28,
   widgetWidth:    '520px',
   accent:         '#e84118',
   boxBgColor:     '#0e0e14',
@@ -114,10 +115,8 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    ROTATION INFO BOX
-   Cycle toutes les 5s : "Tier 1 - X min" → "Tier 2 - X min" → "Tier 3 - X min" → retour
-   Quand un event arrive : affiche "+X min" pendant 6s puis reprend
    ============================================= */
-let lastEventSecs  = null;   // secondes du dernier event
+let lastEventSecs  = null;
 let rotationLocked = false;
 let rotationIndex  = 0;
 let rotationInterval = null;
@@ -130,7 +129,6 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
-// Construit les 3 slides (ou 4 si un event vient d'arriver)
 function buildRotationSlides() {
   const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
   const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
@@ -169,7 +167,6 @@ function startRotation() {
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
-// Appelé à chaque vrai event : affiche +temps 6s puis reprend cycle depuis Tier 1
 function showInfoBox(seconds) {
   lastEventSecs  = seconds;
   rotationLocked = true;
@@ -208,11 +205,17 @@ function applyTimerSize() {
   elTimer.style.fontSize = size + 'px';
 }
 
+function applyInfoSize() {
+  const size = safeInt(cfg('infoFontSize'), DEFAULT.infoFontSize);
+  elInfoText.style.fontSize = size + 'px';
+}
+
 function init() {
   applyGlobalFont();
   applyColors();
   applyAlertStyle();
   applyTimerSize();
+  applyInfoSize();
 
   timeLeft    = safeInt(cfg('initialTime'), DEFAULT.initialTime);
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
