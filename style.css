@@ -53,6 +53,8 @@ body {
   padding: 28px 22px 36px;
   text-align: center;
   height: 130px;
+  width: 75%;          /* réduit la largeur */
+  margin-inline: auto; /* centré */
   display: flex;
   flex-direction: column;
   align-items: center;
