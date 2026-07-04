@@ -22,6 +22,7 @@
   --radius-large:    14px;
   --radius-small:    8px;
   --overlap:         18px;
+  --notch-r:         22px; /* rayon de l'encoche */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,19 +47,10 @@ body {
   overflow: visible;
 }
 
-/* SVG clip-path pour l'encoche arrondie bas-gauche */
-.alert-box-clip {
-  position: absolute;
-  width: 0;
-  height: 0;
-}
-
 /* ===== ALERT BOX ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
   border-radius: var(--radius-large);
-  /* arc concave bas-gauche via clip-path SVG */
-  clip-path: url(#alertBoxClip);
   padding: 28px 22px 36px;
   text-align: center;
   height: 130px;
@@ -73,6 +65,29 @@ body {
   overflow: hidden;
 }
 
+/*
+  Encoche circulaire bas-gauche :
+  Un carré positionné dans le coin bas-gauche,
+  dont le border-radius crée un cercle.
+  Le box-shadow enorme vers l'exterieur remplit tout
+  sauf le cercle central = effet "trou".
+  La couleur du box-shadow = couleur du fond de alert-box.
+*/
+.alert-notch {
+  position: absolute;
+  bottom: calc(-1 * var(--notch-r));
+  left:   calc(-1 * var(--notch-r));
+  width:  calc(2 * var(--notch-r));
+  height: calc(2 * var(--notch-r));
+  border-radius: 50%;
+  /* box-shadow enorme qui peint tout autour du cercle = masque le coin */
+  box-shadow: 0 0 0 60px rgba(14, 14, 20, 0.82);
+  /* le cercle lui-meme est transparent */
+  background: transparent;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .alert-type {
   font-size: 18px;
   font-weight: 600;
@@ -83,6 +98,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .alert-name {
@@ -96,6 +113,8 @@ body {
   text-overflow: ellipsis;
   max-width: 100%;
   transition: font-size 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .alert-name.idle {
