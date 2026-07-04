@@ -1,25 +1,25 @@
 {
   "initialTime": { "type": "number", "label": "⏱ Temps initial (secondes)", "value": 3600, "step": 1, "min": 0 },
 
-  "subEnabled":    { "type": "checkbox", "label": "✅ Activer : Subs",                  "value": true },
-  "timePerSub":    { "type": "number",   "label": "⏱ Secondes / Sub",                  "value": 300,  "step": 1, "min": 0 },
-  "resubEnabled":  { "type": "checkbox", "label": "✅ Activer : Resubs",                "value": true },
-  "timePerResub":  { "type": "number",   "label": "⏱ Secondes / Resub",                "value": 180,  "step": 1, "min": 0 },
-  "giftEnabled":   { "type": "checkbox", "label": "✅ Activer : Gift Subs",             "value": true },
-  "timePerGift":   { "type": "number",   "label": "⏱ Secondes / Gift Sub (× quantité)", "value": 300, "step": 1, "min": 0 },
+  "subEnabled":    { "type": "checkbox", "label": "✅ Activer : Subs",                   "value": true },
+  "timePerSub":    { "type": "number",   "label": "⏱ Secondes / Sub",                   "value": 300,  "step": 1, "min": 0 },
+  "resubEnabled":  { "type": "checkbox", "label": "✅ Activer : Resubs",                 "value": true },
+  "timePerResub":  { "type": "number",   "label": "⏱ Secondes / Resub",                 "value": 180,  "step": 1, "min": 0 },
+  "giftEnabled":   { "type": "checkbox", "label": "✅ Activer : Gift Subs",              "value": true },
+  "timePerGift":   { "type": "number",   "label": "⏱ Secondes / Gift Sub (× quantité)",  "value": 300,  "step": 1, "min": 0 },
 
-  "donoEnabled":    { "type": "checkbox", "label": "✅ Activer : Dons",                 "value": true },
-  "timePerDono":    { "type": "number",   "label": "⏱ Secondes / tranche de don",      "value": 60,   "step": 1, "min": 0 },
-  "timePerDonoPer": { "type": "number",   "label": "💶 Tranche don (€)",               "value": 5,    "step": 1, "min": 1 },
+  "donoEnabled":    { "type": "checkbox", "label": "✅ Activer : Dons",                  "value": true },
+  "timePerDono":    { "type": "number",   "label": "⏱ Secondes / tranche de don",       "value": 60,   "step": 1, "min": 0 },
+  "timePerDonoPer": { "type": "number",   "label": "💶 Tranche don (€)",                "value": 5,    "step": 1, "min": 1 },
 
-  "bitsEnabled":    { "type": "checkbox", "label": "✅ Activer : Bits",                 "value": true },
-  "timePerBits":    { "type": "number",   "label": "⏱ Secondes / tranche bits",        "value": 30,   "step": 1, "min": 0 },
-  "timePerBitsPer": { "type": "number",   "label": "💎 Tranche bits",                  "value": 100,  "step": 1, "min": 1 },
+  "bitsEnabled":    { "type": "checkbox", "label": "✅ Activer : Bits",                  "value": true },
+  "timePerBits":    { "type": "number",   "label": "⏱ Secondes / tranche bits",         "value": 30,   "step": 1, "min": 0 },
+  "timePerBitsPer": { "type": "number",   "label": "💎 Tranche bits",                   "value": 100,  "step": 1, "min": 1 },
 
-  "followEnabled":  { "type": "checkbox", "label": "✅ Activer : Follows",             "value": true },
-  "timePerFollow":  { "type": "number",   "label": "⏱ Secondes / Follow",             "value": 15,   "step": 1, "min": 0 },
+  "followEnabled":  { "type": "checkbox", "label": "✅ Activer : Follows",              "value": true },
+  "timePerFollow":  { "type": "number",   "label": "⏱ Secondes / Follow",              "value": 15,   "step": 1, "min": 0 },
 
-  "goalEnabled": { "type": "checkbox",  "label": "🎯 Afficher Goal Box",              "value": true },
+  "goalEnabled": { "type": "checkbox", "label": "🎯 Afficher Goal Box", "value": true },
   "goalType": {
     "type": "dropdown", "label": "🎯 Type de goal",
     "value": "sub",
@@ -27,14 +27,13 @@
   },
   "goalTarget": { "type": "number", "label": "🎯 Objectif cible", "value": 50, "step": 1, "min": 1 },
 
-  "alertFontSize": { "type": "number", "label": "🔤 Taille police Event (px)", "value": 42, "step": 1, "min": 12 },
-  "alertFont": {
+  "widgetFont": {
     "type": "dropdown",
-    "label": "🔤 Police Event centrale",
-    "value": "Exo 2",
+    "label": "🔤 Police globale (toutes les box)",
+    "value": "Rajdhani",
     "options": {
-      "Exo 2":            "Exo 2 (défaut)",
-      "Rajdhani":         "Rajdhani",
+      "Rajdhani":         "Rajdhani (défaut)",
+      "Exo 2":            "Exo 2",
       "Oswald":           "Oswald",
       "Bebas Neue":       "Bebas Neue",
       "Anton":            "Anton",
@@ -46,23 +45,24 @@
     }
   },
 
-  "timerFontSize": { "type": "slider", "label": "⏱ Timer — taille du texte (px)", "value": 36, "min": 20, "max": 80, "steps": 1 },
+  "alertFontSize": { "type": "number",   "label": "🔤 Taille police Event (px)", "value": 42, "step": 1, "min": 12 },
+  "timerFontSize": { "type": "slider",   "label": "⏱ Timer — taille du texte (px)", "value": 36, "min": 20, "max": 80, "steps": 1 },
 
-  "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",              "value": "520px" },
-  "accent":        { "type": "color",  "label": "🎨 Couleur accent",              "value": "#e84118" },
+  "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",          "value": "520px" },
+  "accent":        { "type": "color",  "label": "🎨 Couleur accent",          "value": "#e84118" },
 
-  "boxBgColor":    { "type": "color",  "label": "🎨 Alert Box — couleur fond",     "value": "#0e0e14" },
-  "boxBgOpacity":  { "type": "slider", "label": "🎨 Alert Box — opacité fond",    "value": 82, "min": 0, "max": 100, "steps": 1 },
+  "boxBgColor":    { "type": "color",  "label": "🎨 Alert Box — couleur fond", "value": "#0e0e14" },
+  "boxBgOpacity":  { "type": "slider", "label": "🎨 Alert Box — opacité fond", "value": 82, "min": 0, "max": 100, "steps": 1 },
 
-  "timerBg":       { "type": "color",  "label": "🎨 Timer — fond",                 "value": "#e84118" },
-  "timerText":     { "type": "color",  "label": "🎨 Timer — texte",                "value": "#ffffff" },
+  "timerBg":       { "type": "color",  "label": "🎨 Timer — fond",             "value": "#e84118" },
+  "timerText":     { "type": "color",  "label": "🎨 Timer — texte",            "value": "#ffffff" },
 
-  "goalBgColor":   { "type": "color",  "label": "🎨 Goal Box — couleur fond",      "value": "#0c0c14" },
-  "goalBgOpacity": { "type": "slider", "label": "🎨 Goal Box — opacité fond",     "value": 90, "min": 0, "max": 100, "steps": 1 },
-  "goalText":      { "type": "color",  "label": "🎨 Goal Box — texte",             "value": "#ffffff" },
+  "goalBgColor":   { "type": "color",  "label": "🎨 Goal Box — couleur fond",  "value": "#0c0c14" },
+  "goalBgOpacity": { "type": "slider", "label": "🎨 Goal Box — opacité fond",  "value": 90, "min": 0, "max": 100, "steps": 1 },
+  "goalText":      { "type": "color",  "label": "🎨 Goal Box — texte",         "value": "#ffffff" },
 
-  "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",              "value": "#e84118" },
-  "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",             "value": "#ffffff" },
-  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",     "value": "#e84118" },
-  "glowOpacity":   { "type": "slider", "label": "🎨 Info Box — intensité glow",  "value": 45, "min": 0, "max": 100, "steps": 1 }
+  "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",           "value": "#e84118" },
+  "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",          "value": "#ffffff" },
+  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",  "value": "#e84118" },
+  "glowOpacity":   { "type": "slider", "label": "🎨 Info Box — intensité glow", "value": 45, "min": 0, "max": 100, "steps": 1 }
 }

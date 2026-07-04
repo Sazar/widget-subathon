@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.10 — Style
+   SUBATHON WIDGET v2.12 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -19,6 +19,7 @@
   --info-text:       #ffffff;
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
+  --widget-font:     'Rajdhani', sans-serif;  /* modifié dynamiquement par JS */
   --radius-large:    14px;
   --radius-small:    8px;
   --overlap:         18px;
@@ -28,7 +29,7 @@
 
 body {
   background: transparent;
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--widget-font);
   overflow: visible;
   width: var(--widget-width);
 }
@@ -64,7 +65,7 @@ body {
 }
 
 .alert-type {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--widget-font);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -73,7 +74,7 @@ body {
 }
 
 .alert-name {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--widget-font);
   font-size: 42px;
   font-weight: 800;
   color: var(--text-primary);
@@ -103,7 +104,7 @@ body {
 
   background: var(--info-bg);
   color: var(--info-text);
-  font-family: 'Rajdhani', sans-serif;
+  font-family: var(--widget-font);
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -138,7 +139,7 @@ body {
   display: flex;
   align-items: baseline;
   gap: 3px;
-  font-family: 'Rajdhani', sans-serif;
+  font-family: var(--widget-font);
   font-size: 22px;
   font-weight: 700;
   color: var(--goal-text);
@@ -165,12 +166,10 @@ body {
   margin-left: 4px;
 }
 
-/* ===== TIMER BOX — cheval bas droite, décalé pour que les 2 derniers chiffres dépassent ===== */
+/* ===== TIMER BOX — cheval bas droite, 2 derniers chiffres dépassent ===== */
 .timer-box {
   position: absolute;
   bottom: 0;
-  /* right négatif = dépasse à droite hors du widget.
-     La largeur d'environ 2 chiffres + letterspacing ≈ 52px */
   right: -48px;
   z-index: 10;
 
@@ -182,7 +181,7 @@ body {
 }
 
 .timer-display {
-  font-family: 'Rajdhani', sans-serif;
+  font-family: var(--widget-font);
   font-size: 36px;
   font-weight: 700;
   color: var(--timer-text);

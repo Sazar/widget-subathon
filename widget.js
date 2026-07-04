@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.11 — Logique
+   SUBATHON WIDGET v2.12 — Logique
    Compatible StreamElements
    ============================================= */
 
@@ -22,8 +22,8 @@ const DEFAULT = {
   donoEnabled:    true,
   bitsEnabled:    true,
   followEnabled:  true,
+  widgetFont:     'Rajdhani',
   alertFontSize:  42,
-  alertFont:      'Exo 2',
   timerFontSize:  36,
   widgetWidth:    '520px',
   accent:         '#e84118',
@@ -41,6 +41,7 @@ const DEFAULT = {
 };
 
 const GOOGLE_FONTS = {
+  'Exo 2':            'Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400',
   'Oswald':           'Oswald:wght@400;600;700',
   'Bebas Neue':       'Bebas+Neue',
   'Anton':            'Anton',
@@ -96,12 +97,12 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
+// Charge une Google Font dynamiquement (Rajdhani est dans le HTML de base)
 function loadFont(fontName) {
-  if (fontName === 'Exo 2' || fontName === 'Rajdhani') return;
+  if (fontName === 'Rajdhani') return; // déjà chargée dans widget.html
   const query = GOOGLE_FONTS[fontName];
   if (!query) return;
-  const existing = document.querySelector(`link[data-font="${fontName}"]`);
-  if (existing) return;
+  if (document.querySelector(`link[data-font="${fontName}"]`)) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.setAttribute('data-font', fontName);
@@ -109,12 +110,17 @@ function loadFont(fontName) {
   document.head.appendChild(link);
 }
 
+// Applique la police globale à TOUTES les box via CSS variable
+function applyGlobalFont() {
+  const font = String(cfg('widgetFont') || DEFAULT.widgetFont);
+  loadFont(font);
+  document.documentElement.style.setProperty('--widget-font', `'${font}', 'Rajdhani', sans-serif`);
+}
+
 function applyAlertStyle() {
   const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
-  const font     = String(cfg('alertFont') || DEFAULT.alertFont);
-  loadFont(font);
-  elAlertName.style.fontSize   = fontSize + 'px';
-  elAlertName.style.fontFamily = `'${font}', 'Exo 2', sans-serif`;
+  elAlertName.style.fontSize = fontSize + 'px';
+  // La famille est gérée par --widget-font via CSS
 }
 
 function applyTimerSize() {
@@ -123,6 +129,7 @@ function applyTimerSize() {
 }
 
 function init() {
+  applyGlobalFont();
   applyColors();
   applyAlertStyle();
   applyTimerSize();
