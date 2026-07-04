@@ -1,6 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.34
-   Ajout Prime Sub + Prime Resub
+   SUBATHON WIDGET v2.35b
+   .idle sur alertName : petit texte au démarrage
+   Retiré dès qu'un vrai event arrive
    ============================================= */
 
 const DEFAULT = {
@@ -90,8 +91,6 @@ function hexToRgba(hex, opacity) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* Détermine le temps à ajouter selon le tier
-   Twitch envoie tier = 1000/2000/3000 ou "Prime" */
 function tierSeconds(prefix, tierRaw) {
   const t = String(tierRaw || '').toLowerCase();
   if (t === 'prime') return safeInt(cfg(prefix + 'Prime'), DEFAULT[prefix + 'Prime']);
@@ -137,6 +136,14 @@ function buildIdleText() {
   return parts.length ? parts.join('/') : 'Subathon';
 }
 
+/* Met le widget en état idle (texte réduit) */
+function setIdle() {
+  elAlertType.textContent = buildIdleText();
+  elAlertName.textContent = 'Pour ajouter du temps';
+  elAlertName.classList.add('idle');
+  elAlertName.style.fontSize = '';
+}
+
 /* ===== FLIP ROTATOR ===== */
 let activeSlot     = elSlotA;
 let inactiveSlot   = elSlotB;
@@ -160,9 +167,9 @@ function buildRotationSlides() {
   const t3    = safeInt(cfg('timePerSubT3'),    DEFAULT.timePerSubT3);
   const prime = safeInt(cfg('timePerSubPrime'), DEFAULT.timePerSubPrime);
   const slides = [
-    'T1 +'     + formatTimeLabel(t1),
-    'T2 +'     + formatTimeLabel(t2),
-    'T3 +'     + formatTimeLabel(t3),
+    'T1 +'    + formatTimeLabel(t1),
+    'T2 +'    + formatTimeLabel(t2),
+    'T3 +'    + formatTimeLabel(t3),
     'Prime +' + formatTimeLabel(prime),
   ];
   if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
@@ -246,7 +253,8 @@ function applyGlobalFont() {
 
 function applyAlertStyle() {
   const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
-  elAlertName.style.fontSize = fontSize + 'px';
+  /* On stocke la taille des events mais on ne l'applique pas en idle */
+  elAlertName.dataset.eventSize = fontSize + 'px';
 }
 
 function applyTimerSize() {
@@ -272,9 +280,7 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
-  elAlertType.textContent = buildIdleText();
-  elAlertName.textContent = 'Pour ajouter du temps';
-
+  setIdle();
   updateTimerDisplay();
   startTimer();
   startRotation();
@@ -355,6 +361,10 @@ const TYPE_LABELS = {
 };
 
 function showAlert(type, name, extra) {
+  /* Retire idle, remet la taille event */
+  elAlertName.classList.remove('idle');
+  elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
+
   elAlertType.textContent = TYPE_LABELS[type] || type;
   elAlertName.textContent = extra ? name + ' - ' + extra : name;
   elAlertBox.classList.remove('flash');
@@ -393,7 +403,6 @@ window.addEventListener('onEventReceived', function(obj) {
       if (!cfg('giftEnabled')) return;
       type = 'gift';
       const count = safeInt(data.amount, 1);
-      /* Les gifts ne sont pas Prime, on utilise le tier normal */
       const t = safeInt(tierRaw, 1000);
       const key = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
       secsToAdd = count * safeInt(cfg(key), DEFAULT[key]);
