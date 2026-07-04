@@ -8,11 +8,9 @@
 </head>
 <body>
   <div class="widget-wrapper">
-
-    <!-- CONTENEUR PRINCIPAL : alert-box + overlays positionnés -->
     <div class="main-container">
 
-      <!-- ALERT BOX — pleine largeur, centre -->
+      <!-- ALERT BOX -->
       <div class="alert-box" id="alertBox">
         <div class="alert-type" id="alertType">En attente...</div>
         <div class="alert-name" id="alertName">–</div>
@@ -20,9 +18,10 @@
 
       <!-- INFO BOX — cheval haut gauche -->
       <div class="info-box" id="infoBox">
-        <!-- Deux slots pour le flip : slot-a visible, slot-b caché, on alterne -->
-        <span class="info-slot active" id="infoSlotA"></span>
-        <span class="info-slot"       id="infoSlotB"></span>
+        <div class="info-flip-track">
+          <span class="info-slot active" id="infoSlotA"></span>
+          <span class="info-slot"       id="infoSlotB"></span>
+        </div>
       </div>
 
       <!-- GOAL BOX — cheval haut droite -->
@@ -37,7 +36,6 @@
       </div>
 
     </div>
-
   </div>
   <script src="widget.js"></script>
 </body>
