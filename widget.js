@@ -1,9 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v2.21 — Logique
+   SUBATHON WIDGET v2.22 — Logique
    Compatible StreamElements
-   Info-box : slider change uniquement font-size en px
-   Tout le reste (height, padding) est en em dans le CSS
-   → aucune manipulation de height/padding côté JS
+   Info-box : taille fixée en CSS, plus de slider
    ============================================= */
 
 const DEFAULT = {
@@ -34,7 +32,6 @@ const DEFAULT = {
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
-  infoFontSize:   22,
   widgetWidth:    '520px',
   accent:         '#e84118',
   boxBgColor:     '#0e0e14',
@@ -232,13 +229,6 @@ function applyTimerSize() {
   elTimer.style.fontSize = size + 'px';
 }
 
-function applyInfoSize() {
-  const size = safeInt(cfg('infoFontSize'), DEFAULT.infoFontSize);
-  // On change SEULEMENT font-size sur .info-box
-  // Le CSS gère height (1.8em) et padding (0.22em 0.7em) en em → tout suit
-  elInfoBox.style.fontSize = size + 'px';
-}
-
 function init() {
   if (_initialized) return;
   _initialized = true;
@@ -247,7 +237,7 @@ function init() {
   applyColors();
   applyAlertStyle();
   applyTimerSize();
-  applyInfoSize();
+  // Info box : taille fixée dans le CSS, rien à faire ici
 
   timeLeft    = safeInt(cfg('initialTime'), DEFAULT.initialTime);
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);

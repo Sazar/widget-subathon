@@ -1,9 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v2.21 — Style
+   SUBATHON WIDGET v2.22 — Style
    Compatible StreamElements / OBS Browser Source
-   Info-box : tout en em — le slider JS change juste font-size,
-   la hauteur, le padding et les slots suivent automatiquement.
-   Position top:0 / left:16px fixe, ne bouge jamais.
+   Info-box : taille fixée 22px, plus de slider
+   Tout en em — position top:0/left:16px immuable
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -99,23 +98,16 @@ body {
 }
 
 /* ===== INFO BOX — ancre fixe haut gauche ===== */
-/*
-  PRINCIPE : font-size est la SEULE valeur touchée par le slider.
-  Tout le reste (height, padding, slots) est exprimé en `em`
-  → tout scale proportionnellement, la boîte reste en top:0 / left:16px.
-*/
 .info-box {
-  /* Ancre fixe — NE PAS CHANGER */
   position: absolute;
   top: 0;
   left: 16px;
   z-index: 10;
 
-  /* Apparence */
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
-  font-size: 22px;           /* ← valeur par défaut, écrasée par JS */
+  font-size: 22px;       /* fixé — ne change plus */
   font-weight: 700;
   letter-spacing: 0.04em;
   border-radius: var(--radius-small);
@@ -123,27 +115,25 @@ body {
   white-space: nowrap;
   text-align: center;
 
-  /* Dimensions en em : suivent font-size automatiquement */
   padding: 0.22em 0.7em;
   min-width: 3.6em;
-  height: 1.8em;             /* hauteur = 1 ligne + padding haut/bas */
-  line-height: 1;            /* le contenu est centré via flexbox */
+  height: 1.8em;
+  line-height: 1;
 
-  /* Centrage du texte dans la boîte */
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;          /* clip les slots qui sortent pendant le flip */
+  overflow: hidden;
 }
 
-/* Les deux slots superposés — héritent la font-size du parent */
+/* Slots flip — héritent de .info-box */
 .info-slot {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: inherit;        /* ← hérite de .info-box, ne jamais surcharger */
+  font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
   opacity: 0;

@@ -53,9 +53,8 @@
     }
   },
 
-  "alertFontSize": { "type": "number",   "label": "🔤 Taille police Event (px)",       "value": 42, "step": 1, "min": 12 },
-  "timerFontSize": { "type": "slider",   "label": "⏱ Timer — taille du texte (px)",   "value": 36, "min": 20, "max": 80, "steps": 1 },
-  "infoFontSize":  { "type": "slider",   "label": "🔤 Info Box — taille du texte (px)", "value": 28, "min": 12, "max": 60, "steps": 1 },
+  "alertFontSize": { "type": "number", "label": "🔤 Taille police Event (px)",     "value": 42, "step": 1, "min": 12 },
+  "timerFontSize": { "type": "slider", "label": "⏱ Timer — taille du texte (px)", "value": 36, "min": 20, "max": 80, "steps": 1 },
 
   "widgetWidth":   { "type": "text",   "label": "📐 Largeur widget",              "value": "520px" },
   "accent":        { "type": "color",  "label": "🎨 Couleur accent",              "value": "#e84118" },
