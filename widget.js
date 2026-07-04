@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.12 — Logique
+   SUBATHON WIDGET v2.13 — Logique
    Compatible StreamElements
    ============================================= */
 
@@ -97,9 +97,88 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-// Charge une Google Font dynamiquement (Rajdhani est dans le HTML de base)
+/* =============================================
+   ROTATION INFO BOX
+   Cycle toutes les 5s : T1 → T2 → T3 → last event → T1 → ...
+   Suspendu pendant 6s après un vrai event pour laisser lire le +temps
+   ============================================= */
+let lastEventText    = null;   // dernier texte "+Xmin" d'un vrai event
+let rotationLocked   = false;  // true = un event vient d'arriver, on attend
+let rotationIndex    = 0;      // 0=T1, 1=T2, 2=T3, 3=last event
+let rotationInterval = null;
+
+function formatTimeLabel(s) {
+  if (s < 60)   return s + 's';
+  if (s < 3600) return Math.round(s / 60) + ' min';
+  const h = Math.floor(s / 3600);
+  const m = Math.round((s % 3600) / 60);
+  return h + 'h' + (m ? m + 'min' : '');
+}
+
+// Retourne les slides de la rotation en lisant les params en temps réel
+function buildRotationSlides() {
+  const t1 = safeInt(cfg('timePerSub'),   DEFAULT.timePerSub);
+  const t2 = safeInt(cfg('timePerResub'), DEFAULT.timePerResub);
+  const t3 = safeInt(cfg('timePerGift'),  DEFAULT.timePerGift);
+  const slides = [
+    { label: 'T1', value: '+' + formatTimeLabel(t1) },
+    { label: 'T2', value: '+' + formatTimeLabel(t2) },
+    { label: 'T3', value: '+' + formatTimeLabel(t3) },
+  ];
+  if (lastEventText) {
+    slides.push({ label: '▶', value: lastEventText });
+  }
+  return slides;
+}
+
+function setInfoBoxContent(label, value) {
+  // label petit en haut, value grand en dessous
+  elInfoText.innerHTML =
+    `<span style="font-size:0.55em;letter-spacing:2px;opacity:0.85;display:block;line-height:1">${label}</span>` +
+    `<span>${value}</span>`;
+}
+
+function rotationTick() {
+  if (rotationLocked) return;
+  const slides = buildRotationSlides();
+  rotationIndex = rotationIndex % slides.length;
+  const slide = slides[rotationIndex];
+  setInfoBoxContent(slide.label, slide.value);
+  elInfoBox.classList.remove('pop');
+  void elInfoBox.offsetWidth;
+  elInfoBox.classList.add('pop');
+  rotationIndex = (rotationIndex + 1) % slides.length;
+}
+
+function startRotation() {
+  if (rotationInterval) clearInterval(rotationInterval);
+  rotationIndex    = 0;
+  rotationLocked   = false;
+  rotationTick();   // affiche T1 immédiatement
+  rotationInterval = setInterval(rotationTick, 5000);
+}
+
+// Appelé quand un vrai event arrive : affiche +temps, bloque la rotation 6s
+function showInfoBox(seconds) {
+  lastEventText  = '+' + formatTimeLabel(seconds);
+  rotationLocked = true;
+  rotationIndex  = 0; // reprendra à T1 après le lock
+
+  setInfoBoxContent('▶', lastEventText);
+  elInfoBox.classList.remove('pop');
+  void elInfoBox.offsetWidth;
+  elInfoBox.classList.add('pop');
+
+  // Débloque après 6s et reprend la rotation
+  setTimeout(() => {
+    rotationLocked = false;
+  }, 6000);
+}
+
+/* ============================================= */
+
 function loadFont(fontName) {
-  if (fontName === 'Rajdhani') return; // déjà chargée dans widget.html
+  if (fontName === 'Rajdhani') return;
   const query = GOOGLE_FONTS[fontName];
   if (!query) return;
   if (document.querySelector(`link[data-font="${fontName}"]`)) return;
@@ -110,7 +189,6 @@ function loadFont(fontName) {
   document.head.appendChild(link);
 }
 
-// Applique la police globale à TOUTES les box via CSS variable
 function applyGlobalFont() {
   const font = String(cfg('widgetFont') || DEFAULT.widgetFont);
   loadFont(font);
@@ -120,7 +198,6 @@ function applyGlobalFont() {
 function applyAlertStyle() {
   const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
   elAlertName.style.fontSize = fontSize + 'px';
-  // La famille est gérée par --widget-font via CSS
 }
 
 function applyTimerSize() {
@@ -145,6 +222,7 @@ function init() {
 
   updateTimerDisplay();
   startTimer();
+  startRotation();
 }
 
 function goalUnitLabel() {
@@ -212,21 +290,6 @@ function updateTimerDisplay() {
     String(h).padStart(2, '0') + ':' +
     String(m).padStart(2, '0') + ':' +
     String(s).padStart(2, '0');
-}
-
-function showInfoBox(seconds) {
-  elInfoText.textContent = '+' + formatTimeLabel(seconds);
-  elInfoBox.classList.remove('pop');
-  void elInfoBox.offsetWidth;
-  elInfoBox.classList.add('pop');
-}
-
-function formatTimeLabel(s) {
-  if (s < 60)   return s + 's';
-  if (s < 3600) return Math.round(s / 60) + ' min';
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  return h + 'h' + (m ? m + 'min' : '');
 }
 
 const TYPE_LABELS = {
