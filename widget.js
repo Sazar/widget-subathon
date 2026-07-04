@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.8 — Logique
+   SUBATHON WIDGET v2.11 — Logique
    Compatible StreamElements
    ============================================= */
 
@@ -24,6 +24,7 @@ const DEFAULT = {
   followEnabled:  true,
   alertFontSize:  42,
   alertFont:      'Exo 2',
+  timerFontSize:  36,
   widgetWidth:    '520px',
   accent:         '#e84118',
   boxBgColor:     '#0e0e14',
@@ -69,7 +70,6 @@ function cfg(key) {
   return DEFAULT[key];
 }
 
-// Convertit une couleur hex + opacité (0-100) en rgba
 function hexToRgba(hex, opacity) {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
@@ -117,9 +117,15 @@ function applyAlertStyle() {
   elAlertName.style.fontFamily = `'${font}', 'Exo 2', sans-serif`;
 }
 
+function applyTimerSize() {
+  const size = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize);
+  elTimer.style.fontSize = size + 'px';
+}
+
 function init() {
   applyColors();
   applyAlertStyle();
+  applyTimerSize();
 
   timeLeft = safeInt(cfg('initialTime'), DEFAULT.initialTime);
 
@@ -163,7 +169,6 @@ function applyColors() {
   for (const [k, v] of Object.entries(map)) {
     if (v) r.style.setProperty(k, v);
   }
-  // Alert box background appliqué directement sur l'élément
   elAlertBox.style.background = boxBg;
 }
 
