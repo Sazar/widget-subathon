@@ -1,7 +1,6 @@
 /* =============================================
-   SUBATHON WIDGET v2.22 — Logique
-   Compatible StreamElements
-   Info-box : taille fixée en CSS, plus de slider
+   SUBATHON WIDGET v2.28 — Logique
+   Idle text = labels des events actifs dans fields
    ============================================= */
 
 const DEFAULT = {
@@ -114,6 +113,20 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
+/* ===== IDLE TEXT dynamique =====
+   Construit la ligne idle selon les events actifs :
+   sub+resub+gift → "Subs", dono → "Tips", bits → "Bits", follow → "Follow"
+   Ex: tout actif → "Subs / Tips / Bits / Follow"
+================================================ */
+function buildIdleText() {
+  const parts = [];
+  if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
+  if (cfg('donoEnabled'))   parts.push('Tips');
+  if (cfg('bitsEnabled'))   parts.push('Bits');
+  if (cfg('followEnabled')) parts.push('Follow');
+  return parts.length ? parts.join(' / ') : 'Subathon';
+}
+
 /* ===== FLIP ROTATOR ===== */
 let activeSlot     = elSlotA;
 let inactiveSlot   = elSlotB;
@@ -132,15 +145,22 @@ function formatTimeLabel(s) {
 }
 
 function buildRotationSlides() {
-  const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
-  const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
-  const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
-  const slides = [
-    'Tier 1 — ' + formatTimeLabel(t1),
-    'Tier 2 — ' + formatTimeLabel(t2),
-    'Tier 3 — ' + formatTimeLabel(t3),
-  ];
+  /* Slide 1 : idle (events actifs) */
+  const slides = [buildIdleText()];
+
+  /* Slides 2-4 : temps par tier sub si subs actifs */
+  if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) {
+    const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
+    const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
+    const t3 = safeInt(cfg('timePerSubT3'), DEFAULT.timePerSubT3);
+    slides.push('T1 +' + formatTimeLabel(t1));
+    slides.push('T2 +' + formatTimeLabel(t2));
+    slides.push('T3 +' + formatTimeLabel(t3));
+  }
+
+  /* Dernier slide : temps du dernier event reçu */
   if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
+
   return slides;
 }
 
@@ -197,6 +217,7 @@ function showInfoBox(seconds) {
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
   elInfoBox.classList.add('pop');
+  /* Après 6s on repasse en rotation normale */
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
@@ -237,7 +258,6 @@ function init() {
   applyColors();
   applyAlertStyle();
   applyTimerSize();
-  // Info box : taille fixée dans le CSS, rien à faire ici
 
   timeLeft    = safeInt(cfg('initialTime'), DEFAULT.initialTime);
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
@@ -247,6 +267,10 @@ function init() {
   elGoalTgt.textContent   = goalTarget;
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
+
+  /* Idle text dans l'alert box au démarrage */
+  elAlertType.textContent = buildIdleText();
+  elAlertName.textContent = '–';
 
   updateTimerDisplay();
   startTimer();
