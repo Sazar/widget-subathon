@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.5 — Style
+   SUBATHON WIDGET v2.6 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -19,8 +19,8 @@
   --info-text:       #ffffff;
   --glow:            rgba(232, 65, 24, 0.45);
   --widget-width:    520px;
-  --radius-large:    14px;  /* alert-box et timer */
-  --radius-small:    8px;   /* info-box et goal-box */
+  --radius-large:    14px;  /* alert-box uniquement */
+  --radius-small:    8px;   /* info-box, goal-box, timer-box */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -162,7 +162,7 @@ body {
 
 .timer-box {
   background: var(--timer-bg);
-  border-radius: var(--radius-large);
+  border-radius: var(--radius-small);
   padding: 5px 18px 6px;
   display: inline-flex;
   align-items: center;
