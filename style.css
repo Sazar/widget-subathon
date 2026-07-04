@@ -53,8 +53,8 @@ body {
   padding: 28px 22px 36px;
   text-align: center;
   height: 130px;
-  width: 75%;          /* réduit la largeur */
-  margin-inline: auto; /* centré */
+  width: 75%;
+  margin-inline: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -89,7 +89,6 @@ body {
   transition: font-size 0.2s ease;
 }
 
-/* Taille pour le texte idle */
 .alert-name.idle {
   font-size: 28px;
   font-weight: 600;
@@ -107,7 +106,8 @@ body {
 .info-box {
   position: absolute;
   top: 0;
-  left: 16px;
+  /* aligne sur le bord gauche de l'alert-box (qui fait 75% centree = 12.5% de marge) */
+  left: calc(12.5% + 0px);
   z-index: 10;
 
   background: var(--info-bg);
