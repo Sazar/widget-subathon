@@ -27,36 +27,34 @@
   },
   "goalTarget": { "type": "number", "label": "🎯 Objectif cible", "value": 50, "step": 1, "min": 1 },
 
-  "alertFontSize": { "type": "number", "label": "🔤 Taille police Event (px)", "value": 42, "step": 1, "min": 12 },
+  "alertFontSize": { "type": "number",   "label": "🔤 Taille police Event (px)", "value": 42, "step": 1, "min": 12 },
   "alertFont": {
     "type": "dropdown",
     "label": "🔤 Police Event centrale",
     "value": "Exo 2",
     "options": {
-      "Exo 2":           "Exo 2 (défaut)",
-      "Rajdhani":        "Rajdhani",
-      "Oswald":          "Oswald",
-      "Bebas Neue":      "Bebas Neue",
-      "Anton":           "Anton",
-      "Barlow Condensed":"Barlow Condensed",
-      "Teko":            "Teko",
-      "Russo One":       "Russo One",
-      "Orbitron":        "Orbitron",
-      "Play":            "Play"
+      "Exo 2":            "Exo 2 (défaut)",
+      "Rajdhani":         "Rajdhani",
+      "Oswald":           "Oswald",
+      "Bebas Neue":       "Bebas Neue",
+      "Anton":            "Anton",
+      "Barlow Condensed": "Barlow Condensed",
+      "Teko":             "Teko",
+      "Russo One":        "Russo One",
+      "Orbitron":         "Orbitron",
+      "Play":             "Play"
     }
   },
 
-  "widgetWidth": { "type": "text",  "label": "📐 Largeur widget",                     "value": "520px" },
-  "accent":      { "type": "color", "label": "🎨 Couleur accent",                     "value": "#e84118" },
-  "accentDark":  { "type": "color", "label": "🎨 Accent foncé",                       "value": "#b83010" },
-  "boxBg":       { "type": "text",  "label": "🎨 Fond Alert Box (rgba)",              "value": "rgba(14,14,20,0.82)" },
-  "boxBorder":   { "type": "color", "label": "🎨 Bordure Alert Box",                  "value": "#e84118" },
-  "timerBg":     { "type": "color", "label": "🎨 Fond Timer",                         "value": "#e84118" },
-  "timerText":   { "type": "color", "label": "🎨 Texte Timer",                        "value": "#ffffff" },
-  "goalBg":      { "type": "text",  "label": "🎨 Fond Goal Box (rgba)",               "value": "rgba(12,12,20,0.90)" },
-  "goalBorder":  { "type": "color", "label": "🎨 Bordure Goal Box",                   "value": "#e84118" },
-  "goalText":    { "type": "color", "label": "🎨 Texte Goal Box",                     "value": "#ffffff" },
-  "infoBg":      { "type": "color", "label": "🎨 Fond Info Box",                      "value": "#e84118" },
-  "infoText":    { "type": "color", "label": "🎨 Texte Info Box",                     "value": "#ffffff" },
-  "glow":        { "type": "text",  "label": "🎨 Couleur glow (rgba)",                "value": "rgba(232,65,24,0.45)" }
+  "widgetWidth": { "type": "text",  "label": "📐 Largeur widget",          "value": "520px" },
+  "accent":      { "type": "color", "label": "🎨 Couleur accent",          "value": "#e84118" },
+  "accentDark":  { "type": "color", "label": "🎨 Accent foncé",            "value": "#b83010" },
+  "boxBg":       { "type": "text",  "label": "🎨 Fond Alert Box (rgba)",   "value": "rgba(14,14,20,0.82)" },
+  "timerBg":     { "type": "color", "label": "🎨 Fond Timer",              "value": "#e84118" },
+  "timerText":   { "type": "color", "label": "🎨 Texte Timer",             "value": "#ffffff" },
+  "goalBg":      { "type": "text",  "label": "🎨 Fond Goal Box (rgba)",    "value": "rgba(12,12,20,0.90)" },
+  "goalText":    { "type": "color", "label": "🎨 Texte Goal Box",          "value": "#ffffff" },
+  "infoBg":      { "type": "color", "label": "🎨 Fond Info Box",           "value": "#e84118" },
+  "infoText":    { "type": "color", "label": "🎨 Texte Info Box",          "value": "#ffffff" },
+  "glow":        { "type": "text",  "label": "🎨 Glow Info Box (rgba)",   "value": "rgba(232,65,24,0.45)" }
 }

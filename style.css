@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.2 — Style
+   SUBATHON WIDGET v2.4 — Style
    Compatible StreamElements / OBS Browser Source
    ============================================= */
 
@@ -8,9 +8,6 @@
 :root {
   --accent:          #e84118;
   --accent-dark:     #b83010;
-  --bg-dark:         rgba(0,0,0,0);
-  --box-bg:          rgba(14, 14, 20, 0.82);
-  --box-border:      #e84118;
   --text-primary:    #ffffff;
   --text-muted:      #cccccc;
   --text-accent:     #e84118;
@@ -76,10 +73,9 @@ body {
   100% { transform: scale(1); }
 }
 
-/* GOAL BOX */
+/* GOAL BOX — sans bordure, sans glow */
 .goal-box {
   background: var(--goal-bg);
-  border: 2px solid var(--goal-border);
   border-radius: var(--radius-pill);
   padding: 4px 14px 4px 12px;
   display: flex;
@@ -89,7 +85,6 @@ body {
   font-size: 22px;
   font-weight: 700;
   color: var(--goal-text);
-  box-shadow: 0 0 12px var(--glow);
 }
 
 #goalCurrent {
@@ -112,10 +107,9 @@ body {
   margin-left: 4px;
 }
 
-/* ===== ALERT BOX ===== */
+/* ===== ALERT BOX — sans bordure ===== */
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
-  border: none;
   border-radius: var(--radius-pill);
   padding: 18px 22px 20px;
   text-align: center;
@@ -160,7 +154,7 @@ body {
   100% { background: rgba(14, 14, 20, 0.82); }
 }
 
-/* ===== BOTTOM ROW : Timer ===== */
+/* ===== BOTTOM ROW : Timer — sans glow ===== */
 .bottom-row {
   display: flex;
   justify-content: flex-end;
@@ -170,7 +164,6 @@ body {
   background: var(--timer-bg);
   border-radius: var(--radius-pill);
   padding: 5px 18px 6px;
-  box-shadow: 0 0 16px var(--glow);
   display: inline-flex;
   align-items: center;
 }
