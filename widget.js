@@ -3,7 +3,9 @@
    ============================================= */
 
 const DEFAULT = {
-  initialTime:      '01:00:00',
+  initialHours:     1,
+  initialMinutes:   0,
+  initialSeconds:   0,
   timePerSubT1:     300,
   timePerSubT2:     600,
   timePerSubT3:     900,
@@ -71,21 +73,6 @@ function safeFloat(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
   const n = parseFloat(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? fallback : n;
-}
-
-// Parse HH:MM:SS ou MM:SS ou un nombre brut de secondes -> secondes
-function parseInitialTime(val) {
-  if (val === undefined || val === null || val === '') return 3600;
-  const str = String(val).trim();
-  // Format HH:MM:SS ou MM:SS
-  if (str.includes(':')) {
-    const parts = str.split(':').map(p => parseInt(p, 10) || 0);
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-  }
-  // Fallback : nombre brut de secondes
-  const n = parseInt(str, 10);
-  return isNaN(n) ? 3600 : n;
 }
 
 function cfg(key) {
@@ -316,7 +303,11 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft    = parseInitialTime(cfg('initialTime'));
+  const h = safeInt(cfg('initialHours'),   DEFAULT.initialHours);
+  const m = safeInt(cfg('initialMinutes'), DEFAULT.initialMinutes);
+  const s = safeInt(cfg('initialSeconds'), DEFAULT.initialSeconds);
+  timeLeft    = h * 3600 + m * 60 + s;
+
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
 
