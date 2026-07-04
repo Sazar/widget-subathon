@@ -1,0 +1,216 @@
+/* =============================================
+   SUBATHON WIDGET — Style
+   Compatible StreamElements / OBS Browser Source
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Exo+2:wght@400;600;700&display=swap');
+
+:root {
+  /* === COULEURS (modifiables dans fields.json) === */
+  --bg-color: transparent;
+  --timer-bg: rgba(10, 10, 20, 0.85);
+  --timer-border: #7c3aed;
+  --timer-text: #ffffff;
+  --timer-label-color: #a78bfa;
+  --goal-bg: rgba(10, 10, 20, 0.80);
+  --goal-border: #7c3aed;
+  --goal-bar-bg: rgba(255,255,255,0.10);
+  --goal-bar-fill: linear-gradient(90deg, #7c3aed, #c026d3);
+  --goal-text: #ffffff;
+  --goal-label-color: #c4b5fd;
+  --event-bg: rgba(10, 10, 20, 0.82);
+  --event-border: #7c3aed;
+  --event-text: #ffffff;
+  --event-accent: #a78bfa;
+  --event-add-color: #4ade80;
+  --glow-color: rgba(124, 58, 237, 0.55);
+
+  /* === TAILLES === */
+  --timer-font-size: 72px;
+  --widget-width: 420px;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-color);
+  font-family: 'Exo 2', sans-serif;
+  overflow: hidden;
+  width: var(--widget-width);
+}
+
+.widget-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  width: var(--widget-width);
+}
+
+/* ---- GOAL BOX ---- */
+.goal-box {
+  background: var(--goal-bg);
+  border: 2px solid var(--goal-border);
+  border-radius: var(--radius);
+  padding: 10px 14px 12px;
+  box-shadow: 0 0 18px var(--glow-color);
+}
+
+.goal-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--goal-label-color);
+  margin-bottom: 6px;
+}
+
+.goal-bar-bg {
+  background: var(--goal-bar-bg);
+  border-radius: 99px;
+  height: 10px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  background: var(--goal-bar-fill);
+  border-radius: 99px;
+  width: 0%;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 10px rgba(192, 38, 211, 0.6);
+}
+
+.goal-values {
+  display: flex;
+  gap: 4px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--goal-text);
+  justify-content: flex-end;
+}
+
+/* ---- TIMER BOX ---- */
+.timer-box {
+  background: var(--timer-bg);
+  border: 2px solid var(--timer-border);
+  border-radius: var(--radius);
+  padding: 14px 20px 16px;
+  text-align: center;
+  box-shadow: 0 0 28px var(--glow-color), inset 0 0 30px rgba(124,58,237,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.timer-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.timer-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--timer-label-color);
+  margin-bottom: 4px;
+}
+
+.timer-display {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: var(--timer-font-size);
+  font-weight: 700;
+  color: var(--timer-text);
+  letter-spacing: 4px;
+  line-height: 1;
+  text-shadow: 0 0 24px var(--glow-color), 0 0 48px var(--glow-color);
+  transition: color 0.3s;
+}
+
+.timer-display.pulse {
+  animation: pulse 0.4s ease;
+}
+
+@keyframes pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.06); color: #c4b5fd; }
+  100% { transform: scale(1); }
+}
+
+/* ---- EVENT FEED ---- */
+.event-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  max-height: 220px;
+  overflow: hidden;
+}
+
+.event-item {
+  background: var(--event-bg);
+  border: 1.5px solid var(--event-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  box-shadow: 0 0 10px var(--glow-color);
+}
+
+.event-item.fade-out {
+  animation: fadeOut 0.4s ease forwards;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(18px); }
+}
+
+.event-icon {
+  font-size: 22px;
+  min-width: 26px;
+  text-align: center;
+}
+
+.event-info {
+  flex: 1;
+}
+
+.event-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--event-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-type {
+  font-size: 11px;
+  color: var(--event-accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.event-add {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--event-add-color);
+  white-space: nowrap;
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subathon Widget</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="widget-wrapper">
+
+    <!-- GOAL BOX -->
+    <div class="goal-box" id="goalBox">
+      <div class="goal-label" id="goalLabel">Objectif</div>
+      <div class="goal-bar-bg">
+        <div class="goal-bar-fill" id="goalBarFill"></div>
+      </div>
+      <div class="goal-values">
+        <span id="goalCurrent">0</span>
+        <span>/</span>
+        <span id="goalTarget">100</span>
+        <span id="goalUnit">subs</span>
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="timer-box">
+      <div class="timer-label">SUBATHON</div>
+      <div class="timer-display" id="timerDisplay">00:00:00</div>
+    </div>
+
+    <!-- EVENT FEED -->
+    <div class="event-feed" id="eventFeed"></div>
+
+  </div>
+  <script src="widget.js"></script>
+</body>
+</html>
