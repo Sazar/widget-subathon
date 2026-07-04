@@ -1,7 +1,6 @@
 /* =============================================
-   SUBATHON WIDGET v2.29 — Logique
-   Info-box : rotation Tier 1/2/3 + dernier event
-   Alert box idle : texte dynamique selon fields
+   SUBATHON WIDGET v2.30 — Logique
+   Idle text : "Subs/ Tips/ Bits" (sans Follow)
    ============================================= */
 
 const DEFAULT = {
@@ -114,14 +113,17 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* ===== IDLE TEXT alert box ===== */
+/* ===== IDLE TEXT alert box =====
+   Format : "Subs/ Tips/ Bits" (slash collé, sans Follow)
+   Seuls les events actifs dans fields apparaissent
+================================================ */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
-  if (cfg('donoEnabled'))   parts.push('Tips');
-  if (cfg('bitsEnabled'))   parts.push('Bits');
-  if (cfg('followEnabled')) parts.push('Follow');
-  return parts.length ? parts.join(' / ') : 'Subathon';
+  if (cfg('donoEnabled')) parts.push('Tips');
+  if (cfg('bitsEnabled')) parts.push('Bits');
+  // Follow volontairement exclu
+  return parts.length ? parts.join('/ ') : 'Subathon';
 }
 
 /* ===== FLIP ROTATOR ===== */
@@ -141,7 +143,6 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
-/* Rotation info-box : T1/T2/T3 + dernier event (sans slide idle) */
 function buildRotationSlides() {
   const t1 = safeInt(cfg('timePerSubT1'), DEFAULT.timePerSubT1);
   const t2 = safeInt(cfg('timePerSubT2'), DEFAULT.timePerSubT2);
@@ -258,7 +259,7 @@ function init() {
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
-  /* Alert box au démarrage : texte dynamique selon events actifs */
+  /* Alert box au démarrage */
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = '–';
 
