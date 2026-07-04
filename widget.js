@@ -1,8 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v2.19 — Logique
+   SUBATHON WIDGET v2.20 — Logique
    Compatible StreamElements
-   Info box : flip rotator entre slides
-   Pop uniquement sur vrai event
+   Fix : init() appelé une seule fois (guard)
+   Fix : slider info box via CSS var sur le conteneur
    ============================================= */
 
 const DEFAULT = {
@@ -61,6 +61,8 @@ const GOOGLE_FONTS = {
   'Play':             'Play:wght@400;700',
 };
 
+let _initialized = false; // Guard anti-double init
+
 function safeInt(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
   const n = parseInt(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''), 10);
@@ -116,13 +118,11 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    FLIP ROTATOR — info box
-   activeSlot  = slot actuellement visible
-   inactiveSlot = slot caché prêt à recevoir le prochain texte
    ============================================= */
 let activeSlot     = elSlotA;
 let inactiveSlot   = elSlotB;
-let flipLocked     = false;   // true pendant 320ms (durée du flip)
-let rotationLocked = false;   // true pendant 6s après un vrai event
+let flipLocked     = false;
+let rotationLocked = false;
 let rotationIndex  = 0;
 let rotationInterval = null;
 let lastEventSecs  = null;
@@ -144,20 +144,12 @@ function buildRotationSlides() {
     'Tier 2 — ' + formatTimeLabel(t2),
     'Tier 3 — ' + formatTimeLabel(t3),
   ];
-  if (lastEventSecs !== null) {
-    slides.push('+' + formatTimeLabel(lastEventSecs));
-  }
+  if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
   return slides;
 }
 
-/**
- * flipTo(text, animate)
- * animate=true  → effet flip (slot sort vers le haut, nouveau arrive par le bas)
- * animate=false → swap instantané sans animation (premier affichage)
- */
 function flipTo(text, animate) {
   if (animate && flipLocked) return;
-
   inactiveSlot.textContent = text;
 
   if (!animate) {
@@ -169,10 +161,8 @@ function flipTo(text, animate) {
   }
 
   flipLocked = true;
-
   activeSlot.classList.remove('active');
   activeSlot.classList.add('flip-out');
-
   inactiveSlot.classList.remove('flip-out');
   inactiveSlot.classList.add('flip-in');
 
@@ -203,18 +193,14 @@ function startRotation() {
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
-// Appelé sur vrai event : flip animé vers le "+X min" + pop sur la boîte
 function showInfoBox(seconds) {
   lastEventSecs  = seconds;
   rotationLocked = true;
   rotationIndex  = 0;
-
   flipTo('+' + formatTimeLabel(seconds), true);
-
   elInfoBox.classList.remove('pop');
   void elInfoBox.offsetWidth;
   elInfoBox.classList.add('pop');
-
   setTimeout(() => { rotationLocked = false; }, 6000);
 }
 
@@ -250,12 +236,17 @@ function applyTimerSize() {
 
 function applyInfoSize() {
   const size = safeInt(cfg('infoFontSize'), DEFAULT.infoFontSize);
-  elSlotA.style.fontSize = size + 'px';
-  elSlotB.style.fontSize = size + 'px';
-  elInfoBox.style.height = (size * 1.5) + 'px';
+  // On passe la taille via CSS custom property sur le conteneur
+  // Les slots héritent via font-size: var(--info-font-size)
+  elInfoBox.style.setProperty('--info-font-size', size + 'px');
+  elInfoBox.style.height = Math.round(size * 1.6) + 'px';
+  elInfoBox.style.padding = Math.round(size * 0.18) + 'px ' + Math.round(size * 0.55) + 'px';
 }
 
 function init() {
+  if (_initialized) return; // Guard : on n'initialise qu'une seule fois
+  _initialized = true;
+
   applyGlobalFont();
   applyColors();
   applyAlertStyle();
@@ -363,9 +354,18 @@ function addGoal(amount) {
   elGoalCur.textContent = goalCurrent;
 }
 
+/* ===== EVENTS ===== */
+let _lastEventId = null; // Guard anti-double event SE
+
 window.addEventListener('onEventReceived', function(obj) {
   const data     = obj.detail.event;
   const listener = obj.detail.listener;
+
+  // Déduplication : SE peut envoyer le même event deux fois
+  const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || data.months || '');
+  if (eventId === _lastEventId) return;
+  _lastEventId = eventId;
+  setTimeout(() => { if (_lastEventId === eventId) _lastEventId = null; }, 3000);
 
   if (listener === 'subscriber-latest') {
     if (!cfg('subEnabled')) return;
@@ -440,6 +440,7 @@ window.addEventListener('onEventReceived', function(obj) {
   }
 });
 
+// onWidgetLoad : reçoit fieldData puis appelle init()
 window.addEventListener('onWidgetLoad', function(obj) {
   if (obj && obj.detail && obj.detail.fieldData) {
     window.fieldData = obj.detail.fieldData;
@@ -447,7 +448,5 @@ window.addEventListener('onWidgetLoad', function(obj) {
   init();
 });
 
-if (typeof fieldData === 'undefined') {
-  window.fieldData = {};
-  init();
-}
+// Fallback hors SE (test local) : si onWidgetLoad ne se déclenche pas dans 500ms
+setTimeout(() => { if (!_initialized) init(); }, 500);
