@@ -110,7 +110,7 @@
   "gbar1Type": {
     "type": "dropdown", "label": "📊 Barre 1 — Type",
     "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
   },
   "gbar1Target": { "type": "number", "label": "📊 Barre 1 — Objectif", "value": 100, "step": 1, "min": 1 },
 
@@ -119,7 +119,7 @@
   "gbar2Type": {
     "type": "dropdown", "label": "📊 Barre 2 — Type",
     "value": "dono",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
   },
   "gbar2Target": { "type": "number", "label": "📊 Barre 2 — Objectif", "value": 500, "step": 1, "min": 1 },
 
@@ -128,7 +128,7 @@
   "gbar3Type": {
     "type": "dropdown", "label": "📊 Barre 3 — Type",
     "value": "bits",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
   },
   "gbar3Target": { "type": "number", "label": "📊 Barre 3 — Objectif", "value": 10000, "step": 1, "min": 1 },
 
@@ -137,7 +137,7 @@
   "gbar4Type": {
     "type": "dropdown", "label": "📊 Barre 4 — Type",
     "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
   },
   "gbar4Target": { "type": "number", "label": "📊 Barre 4 — Objectif", "value": 200, "step": 1, "min": 1 },
 
@@ -146,7 +146,7 @@
   "gbar5Type": {
     "type": "dropdown", "label": "📊 Barre 5 — Type",
     "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
   },
   "gbar5Target": { "type": "number", "label": "📊 Barre 5 — Objectif", "value": 300, "step": 1, "min": 1 }
 }

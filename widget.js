@@ -1,8 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v3.5
+   SUBATHON WIDGET v3.6
    - autoStart immédiat sans attendre storeLoad
    - Timer garde son temps sur changement params
    - 5 barres de goal configurables
+   - Barres : ajout du type Follow
    ============================================= */
 
 const DEFAULT = {
@@ -84,7 +85,6 @@ const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
-// Store keys pour les barres de goal
 const SK_GBAR  = (n) => 'sa_gbar' + n;
 
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
@@ -193,7 +193,6 @@ let goalTarget    = 1;
 let timerInterval = null;
 let safeCurrent   = 3600;
 
-// Barres de goal : current par index 1-5
 const gbarCurrent = { 1:0, 2:0, 3:0, 4:0, 5:0 };
 
 const elTimer     = document.getElementById('timerDisplay');
@@ -225,7 +224,6 @@ function initGbars() {
     gbarEl(n,'label').textContent = label;
     gbarEl(n,'tgt').textContent   = target;
 
-    // Restaure depuis le store
     storeLoadGbar(n, function(saved) {
       const cur = (saved !== null && saved >= 0) ? saved : 0;
       gbarCurrent[n] = cur;
@@ -461,7 +459,7 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.5
+   INIT v3.6
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -482,19 +480,16 @@ function init(fd) {
   const parsed     = parseTimeField(rawInitial);
   safeCurrent      = parsed > 0 ? parsed : 3600;
 
-  // Affiche immédiatement
   timeLeft = safeCurrent;
   elTimer.style.color = '';
   updateTimerDisplay();
 
-  // ETAPE 1 : autoStart sans attendre le store
   if (cfgBool('autoStart') && safeCurrent > 0) {
     startTimer();
   } else {
     storeSave();
   }
 
-  // ETAPE 2 : storeLoad corrige si rechargement récent
   const now = Date.now();
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
     const elapsed      = (savedStamp !== null) ? (now - savedStamp) : Infinity;
@@ -596,7 +591,6 @@ window.addEventListener('onEventReceived', function(obj) {
       secsToAdd=tierSeconds('timePerSub',tierRaw);
       if (cfg('goalType')==='sub') goalAdd=1;
     }
-    // sub = 1 pour les barres (sub + resub + gift tous comptent comme sub)
     const gbarAmount = isGift ? safeInt(data.amount,1) : 1;
     enqueueEvent({type,name:uname,bottomExtra,topTier:tier,secsToAdd,goalAdd,infoSecs:secsToAdd,gbarType:'sub',gbarAmount});
   }
@@ -618,6 +612,7 @@ window.addEventListener('onEventReceived', function(obj) {
   if (listener==='follower-latest') {
     if (!cfgBool('followEnabled')) return;
     const secsToAdd=safeInt(cfg('timePerFollow'),DEFAULT.timePerFollow);
-    enqueueEvent({type:'follow',name:data.displayName||data.name||'Anonyme',bottomExtra:null,topTier:null,secsToAdd,goalAdd:null,infoSecs:secsToAdd,gbarType:null,gbarAmount:0});
+    // Follow compte dans les barres de type 'follow' (1 par follow)
+    enqueueEvent({type:'follow',name:data.displayName||data.name||'Anonyme',bottomExtra:null,topTier:null,secsToAdd,goalAdd:null,infoSecs:secsToAdd,gbarType:'follow',gbarAmount:1});
   }
 });
