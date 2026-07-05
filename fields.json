@@ -51,6 +51,52 @@
   },
   "goalTarget": { "type": "number", "label": "🎯 Objectif cible", "value": 50, "step": 1, "min": 1 },
 
+  "cmdEnabled": {
+    "type": "checkbox",
+    "label": "💬 Activer les commandes chat",
+    "value": true
+  },
+  "cmdPrefix": {
+    "type": "text",
+    "label": "💬 Préfixe commandes",
+    "value": "!"
+  },
+  "cmdStart": {
+    "type": "text",
+    "label": "💬 Alias Démarrer le timer",
+    "value": "start"
+  },
+  "cmdStop": {
+    "type": "text",
+    "label": "💬 Alias Mettre en pause",
+    "value": "stop"
+  },
+  "cmdReset": {
+    "type": "text",
+    "label": "💬 Alias Remettre à zéro",
+    "value": "reset"
+  },
+  "cmdSetTime": {
+    "type": "text",
+    "label": "💬 Alias Définir le temps (ex: !settime 01:30:00)",
+    "value": "settime"
+  },
+  "cmdAddTime": {
+    "type": "text",
+    "label": "💬 Alias Ajouter du temps (ex: !addtime 00:05:00 ou !addtime 300)",
+    "value": "addtime"
+  },
+  "cmdRemoveTime": {
+    "type": "text",
+    "label": "💬 Alias Retirer du temps (ex: !removetime 00:05:00 ou !removetime 300)",
+    "value": "removetime"
+  },
+  "cmdModOnly": {
+    "type": "checkbox",
+    "label": "🛡️ Commandes réservées aux mods & streamer uniquement",
+    "value": true
+  },
+
   "widgetFont": {
     "type": "dropdown",
     "label": "🔤 Police globale (toutes les box)",

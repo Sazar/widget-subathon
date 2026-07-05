@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.43
+   SUBATHON WIDGET v2.44
    ============================================= */
 
 const DEFAULT = {
@@ -31,6 +31,15 @@ const DEFAULT = {
   goalEnabled:    true,
   goalType:       'sub',
   goalTarget:     50,
+  cmdEnabled:     true,
+  cmdPrefix:      '!',
+  cmdStart:       'start',
+  cmdStop:        'stop',
+  cmdReset:       'reset',
+  cmdSetTime:     'settime',
+  cmdAddTime:     'addtime',
+  cmdRemoveTime:  'removetime',
+  cmdModOnly:     true,
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
   timerFontSize:  36,
@@ -140,11 +149,10 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    EVENT QUEUE
-   Chaque payload contient toutes les infos.
    Tout (temps + affichage) se déclenche ensemble
    lors du traitement. Minimum 2s entre deux events.
    ============================================= */
-const QUEUE_GAP  = 2000; // ms minimum entre deux alertes
+const QUEUE_GAP  = 2000;
 
 const eventQueue = [];
 let   queueBusy  = false;
@@ -416,6 +424,14 @@ function startTimer() {
   }, 1000);
 }
 
+function pauseTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  running = false;
+}
+
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
 
@@ -432,6 +448,20 @@ function addTime(seconds) {
   elTimer.classList.add('pulse');
   setTimeout(() => elTimer.classList.remove('pulse'), 450);
   updateTimerDisplay();
+}
+
+function removeTime(seconds) {
+  timeLeft = Math.max(0, timeLeft - seconds);
+  elTimer.classList.remove('pulse');
+  void elTimer.offsetWidth;
+  elTimer.classList.add('pulse');
+  setTimeout(() => elTimer.classList.remove('pulse'), 450);
+  updateTimerDisplay();
+  if (timeLeft <= 0) {
+    running = false;
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    elTimer.style.color = '#ffffff99';
+  }
 }
 
 function addGoal(amount) {
@@ -478,12 +508,102 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   }
 }
 
-/* ===== EVENTS ===== */
-let _lastEventId = null;
-
+/* =============================================
+   CHAT COMMANDS
+   Écoute onMessage de StreamElements.
+   Seuls mods / broadcaster autorisés si cmdModOnly.
+   Commandes supportées :
+     !start               → démarre le timer
+     !stop                → met en pause
+     !reset               → remet au temps initial
+     !settime HH:MM:SS    → définit le temps exactement
+     !addtime HH:MM:SS    → ajoute du temps
+     !addtime 300         → ajoute 300 secondes
+     !removetime HH:MM:SS → retire du temps
+     !removetime 300      → retire 300 secondes
+   ============================================= */
 window.addEventListener('onEventReceived', function(obj) {
-  const data     = obj.detail.event;
   const listener = obj.detail.listener;
+
+  /* --- Chat message --- */
+  if (listener === 'message') {
+    if (!cfg('cmdEnabled')) return;
+
+    const data   = obj.detail.event.data;
+    const msg    = String(data.text || '').trim();
+    const badges = data.badges || [];
+
+    if (cfg('cmdModOnly')) {
+      const isMod        = !!(data.tags && data.tags.mod === '1');
+      const isBroadcaster = badges.some(b => b.type === 'broadcaster');
+      if (!isMod && !isBroadcaster) return;
+    }
+
+    const prefix = String(cfg('cmdPrefix') || '!').trim();
+    if (!msg.startsWith(prefix)) return;
+
+    const withoutPrefix = msg.slice(prefix.length).trim();
+    const parts         = withoutPrefix.split(/\s+/);
+    const cmd           = parts[0].toLowerCase();
+    const arg           = parts[1] || '';
+
+    const aliases = {
+      start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
+      stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
+      reset:      String(cfg('cmdReset')      || DEFAULT.cmdReset).toLowerCase(),
+      settime:    String(cfg('cmdSetTime')    || DEFAULT.cmdSetTime).toLowerCase(),
+      addtime:    String(cfg('cmdAddTime')    || DEFAULT.cmdAddTime).toLowerCase(),
+      removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
+    };
+
+    if (cmd === aliases.start) {
+      if (!running && timeLeft > 0) startTimer();
+      elTimer.style.color = '';
+      return;
+    }
+
+    if (cmd === aliases.stop) {
+      pauseTimer();
+      return;
+    }
+
+    if (cmd === aliases.reset) {
+      pauseTimer();
+      timeLeft = parseTimeField(cfg('initialTime')) || 3600;
+      elTimer.style.color = '';
+      updateTimerDisplay();
+      startTimer();
+      return;
+    }
+
+    if (cmd === aliases.settime && arg) {
+      const secs = parseTimeField(arg);
+      if (secs > 0) {
+        timeLeft = secs;
+        elTimer.style.color = '';
+        updateTimerDisplay();
+        if (!running) startTimer();
+      }
+      return;
+    }
+
+    if (cmd === aliases.addtime && arg) {
+      const secs = parseTimeField(arg);
+      if (secs > 0) addTime(secs);
+      return;
+    }
+
+    if (cmd === aliases.removetime && arg) {
+      const secs = parseTimeField(arg);
+      if (secs > 0) removeTime(secs);
+      return;
+    }
+
+    return; // commande inconnue, on ignore
+  }
+
+  /* --- Autres events (subs, tips, bits, follows) --- */
+  const data = obj.detail.event;
 
   const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || '');
   if (eventId === _lastEventId) return;
@@ -557,6 +677,8 @@ window.addEventListener('onEventReceived', function(obj) {
     enqueueEvent({ type: 'follow', name: uname, bottomExtra: null, topTier: null, secsToAdd, goalAdd: null, infoSecs: secsToAdd });
   }
 });
+
+let _lastEventId = null;
 
 window.addEventListener('onWidgetLoad', function(obj) {
   if (obj && obj.detail && obj.detail.fieldData) {
