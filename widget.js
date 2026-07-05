@@ -1,9 +1,12 @@
 /* =============================================
-   SUBATHON WIDGET v3.3
-   - autoStart fonctionne dans tous les cas
-   - Timer garde son temps sur changement de params
-   - Reset uniquement si initialTime change
-   - Fenêtre de rechargement 5 minutes
+   SUBATHON WIDGET v3.4
+   STRATEGIE AUTOSTART :
+   - autoStart démarre le timer IMMEDIATEMNT
+     sans attendre storeLoad
+   - storeLoad arrive ensuite et corrige :
+       * si rechargement récent + même initialTime
+         => remplace par le temps sauvegardé
+       * sinon => laisse tourner
    ============================================= */
 
 const DEFAULT = {
@@ -80,8 +83,7 @@ const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
 
-// 5 minutes : couvre largement le temps de sauvegarde de paramètres dans SE
-const RELOAD_WINDOW_MS = 5 * 60 * 1000;
+const RELOAD_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -380,24 +382,24 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.3
+   INIT v3.4
 
-   Logique de décision :
+   PRINCIPE : autoStart est traité AVANT storeLoad.
+   storeLoad arrive ensuite et corrige si nécessaire.
 
-   A) Store vide (null) OU stamp > 5min
-      → Premier vrai lancement
-      → autoStart ? startTimer() : storeSave()
+   ETAPE 1 - immédiat :
+     - Affiche initialTime
+     - Si autoStart => startTimer() tout de suite
+     - Sinon => pause
 
-   B) Store récent (< 5min) ET initialTime INCHANGÉ
-      → Rechargement ou changement de param autre que temps
-      → Restaure savedTime
-      → savedRun=1 ? startTimer() : pause
-      → Si savedRun est null (jamais sauvegardé) → autoStart
-
-   C) Store récent (< 5min) ET initialTime CHANGÉ
-      → Nouveau temps initial voulu
-      → timeLeft = safeCurrent
-      → autoStart ? startTimer() : storeSave()
+   ETAPE 2 - storeLoad (async, ~100-500ms) :
+     A) Store vide ou trop vieux  => rien à corriger
+     B) Rechargement récent, même initialTime
+        => remplace timeLeft par savedTime
+        => si était en pause (savedRun=0) => pause
+        => si était en cours (savedRun=1) => continue
+     C) initialTime changé => rien à corriger,
+        le timer tourne sur le nouveau temps
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -417,67 +419,48 @@ function init(fd) {
   const parsed     = parseTimeField(rawInitial);
   safeCurrent      = parsed > 0 ? parsed : 3600;
 
-  // Affiche immédiatement le temps initial — jamais --:--:--
+  // ETAPE 1 : affiche et lance immédiatement
   timeLeft = safeCurrent;
   elTimer.style.color = '';
   updateTimerDisplay();
 
-  const now = Date.now();
+  if (cfgBool('autoStart') && safeCurrent > 0) {
+    startTimer(); // démarre SANS attendre le store
+  } else {
+    storeSave();  // sauvegarde l'état pause
+  }
 
+  // ETAPE 2 : storeLoad corrige si rechargement
+  const now = Date.now();
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
 
-    const elapsed      = (savedStamp !== null) ? (now - savedStamp) : Infinity;
-    const isRecent     = elapsed < RELOAD_WINDOW_MS;          // < 5 min
-    const hasSave      = savedTime !== null && savedTime >= 0; // store non vide
-    const initChanged  = hasSave && savedInit !== null && savedInit !== safeCurrent;
-    const wasRunning   = savedRun === 1;                       // était en cours
+    const elapsed     = (savedStamp !== null) ? (now - savedStamp) : Infinity;
+    const isRecent    = elapsed < RELOAD_WINDOW_MS;
+    const hasSave     = savedTime !== null && savedTime >= 0;
+    const initUnchanged = hasSave && savedInit !== null && savedInit === safeCurrent;
 
-    if (!isRecent || !hasSave) {
-      // --- CAS A : premier lancement ou store expiré
-      timeLeft = safeCurrent;
-      updateTimerDisplay();
-      if (cfgBool('autoStart') && safeCurrent > 0) {
-        startTimer();
-      } else {
-        storeSave();
-      }
+    // Seulement si c'est un rechargement récent avec le même initialTime
+    if (isRecent && hasSave && initUnchanged) {
 
-    } else if (initChanged) {
-      // --- CAS C : initialTime a changé → nouveau départ
-      timeLeft = safeCurrent;
-      updateTimerDisplay();
-      if (cfgBool('autoStart') && safeCurrent > 0) {
-        startTimer();
-      } else {
-        storeSave();
-      }
-
-    } else {
-      // --- CAS B : rechargement ou changement de paramètre, initialTime identique
-      // On restaure le temps exact
+      // Remplace le temps par le temps sauvegardé
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      running = false;
       timeLeft = savedTime;
       updateTimerDisplay();
 
       if (savedTime <= 0) {
-        // Timer fini, on ne redémarre pas
         elTimer.style.color = '#ffffff99';
         storeSave();
-      } else if (wasRunning) {
-        // Était en train de tourner → on reprend
-        startTimer();
-      } else if (savedRun === null) {
-        // Store vide pour savedRun = jamais explicitement sauvegardé
-        // Comportement autoStart
-        if (cfgBool('autoStart')) {
-          startTimer();
-        } else {
-          storeSave();
-        }
-      } else {
-        // savedRun === 0 : était explicitement en pause
+      } else if (savedRun === 0) {
+        // Était explicitement en pause => on respecte la pause
         storeSave();
+      } else {
+        // savedRun === 1 ou null => on reprend (autoStart ou était en cours)
+        startTimer();
       }
     }
+    // Sinon (premier lancement, store vide, initialTime changé)
+    // => le timer tourne déjà depuis l'étape 1, rien à faire
   });
 }
 
