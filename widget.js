@@ -1,10 +1,11 @@
 /* =============================================
-   SUBATHON WIDGET v2.44
+   SUBATHON WIDGET v2.45
    ============================================= */
 
 const DEFAULT = {
   initialTime:      '01:00:00',
   maxTime:          '00:00:00',
+  autoStart:        true,
   lockOnZero:       false,
   timePerSubT1:     300,
   timePerSubT2:     600,
@@ -148,12 +149,9 @@ const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
-   EVENT QUEUE
-   Tout (temps + affichage) se déclenche ensemble
-   lors du traitement. Minimum 2s entre deux events.
+   EVENT QUEUE — 2s minimum entre deux alertes
    ============================================= */
 const QUEUE_GAP  = 2000;
-
 const eventQueue = [];
 let   queueBusy  = false;
 let   lastFired  = 0;
@@ -186,8 +184,7 @@ function fireEvent({ type, name, bottomExtra, topTier, secsToAdd, goalAdd, infoS
   startIdleCycle();
 }
 
-/* ===== */
-
+/* ===== IDLE ===== */
 function buildIdleText() {
   const parts = [];
   if (cfg('subEnabled') || cfg('resubEnabled') || cfg('giftEnabled')) parts.push('Subs');
@@ -204,7 +201,6 @@ function setIdle() {
   elAlertName.style.fontSize = '';
 }
 
-/* ===== IDLE CYCLING ===== */
 const IDLE_DELAY  = 60 * 1000;
 const CYCLE_DELAY = 20 * 1000;
 
@@ -221,11 +217,9 @@ function resetIdleCycle() {
 function startIdleCycle() {
   resetIdleCycle();
   if (!lastEventState) return;
-
   idleTimer = setTimeout(() => {
     cycleShowIdle = true;
     setIdle();
-
     cycleInterval = setInterval(() => {
       cycleShowIdle = !cycleShowIdle;
       if (cycleShowIdle) {
@@ -273,7 +267,6 @@ function buildRotationSlides() {
 function flipTo(text, animate) {
   if (animate && flipLocked) return;
   inactiveSlot.textContent = text;
-
   if (!animate) {
     activeSlot.classList.remove('active', 'flip-out', 'flip-in');
     inactiveSlot.classList.remove('flip-out', 'flip-in');
@@ -281,13 +274,11 @@ function flipTo(text, animate) {
     [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
     return;
   }
-
   flipLocked = true;
   activeSlot.classList.remove('active');
   activeSlot.classList.add('flip-out');
   inactiveSlot.classList.remove('flip-out');
   inactiveSlot.classList.add('flip-in');
-
   setTimeout(() => {
     activeSlot.classList.remove('flip-out');
     inactiveSlot.classList.remove('flip-in');
@@ -375,7 +366,16 @@ function init() {
 
   setIdle();
   updateTimerDisplay();
-  startTimer();
+
+  // Démarrage automatique ou non selon l'option
+  if (cfg('autoStart')) {
+    startTimer();
+  } else {
+    // Timer en attente : affiche le temps mais ne décompte pas
+    running = false;
+    elTimer.style.color = '#ffffff99';
+  }
+
   startRotation();
 }
 
@@ -412,6 +412,7 @@ function applyColors() {
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   running = true;
+  elTimer.style.color = '';
   timerInterval = setInterval(() => {
     if (timeLeft > 0) {
       timeLeft--;
@@ -419,6 +420,7 @@ function startTimer() {
     } else {
       running = false;
       clearInterval(timerInterval);
+      timerInterval = null;
       elTimer.style.color = '#ffffff99';
     }
   }, 1000);
@@ -434,14 +436,9 @@ function pauseTimer() {
 
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
-
   timeLeft += seconds;
-
   const maxSecs = parseTimeField(cfg('maxTime'));
-  if (maxSecs > 0 && timeLeft > maxSecs) {
-    timeLeft = maxSecs;
-  }
-
+  if (maxSecs > 0 && timeLeft > maxSecs) timeLeft = maxSecs;
   if (!running && timeLeft > 0) startTimer();
   elTimer.classList.remove('pulse');
   void elTimer.offsetWidth;
@@ -488,7 +485,6 @@ const TYPE_LABELS = {
 function showAlert(type, name, bottomExtra, topTier, flash = true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
-
   if (topTier) {
     const baseLabel = type === 'sub'   ? 'Nouveau Sub'
                     : type === 'resub' ? 'Réabonnement'
@@ -498,9 +494,7 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   } else {
     elAlertType.textContent = TYPE_LABELS[type] || type;
   }
-
   elAlertName.textContent = bottomExtra ? name + ' - ' + bottomExtra : name;
-
   if (flash) {
     elAlertBox.classList.remove('flash');
     void elAlertBox.offsetWidth;
@@ -508,45 +502,28 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   }
 }
 
-/* =============================================
-   CHAT COMMANDS
-   Écoute onMessage de StreamElements.
-   Seuls mods / broadcaster autorisés si cmdModOnly.
-   Commandes supportées :
-     !start               → démarre le timer
-     !stop                → met en pause
-     !reset               → remet au temps initial
-     !settime HH:MM:SS    → définit le temps exactement
-     !addtime HH:MM:SS    → ajoute du temps
-     !addtime 300         → ajoute 300 secondes
-     !removetime HH:MM:SS → retire du temps
-     !removetime 300      → retire 300 secondes
-   ============================================= */
+/* ===== CHAT COMMANDS ===== */
+let _lastEventId = null;
+
 window.addEventListener('onEventReceived', function(obj) {
   const listener = obj.detail.listener;
 
-  /* --- Chat message --- */
   if (listener === 'message') {
     if (!cfg('cmdEnabled')) return;
-
     const data   = obj.detail.event.data;
     const msg    = String(data.text || '').trim();
     const badges = data.badges || [];
-
     if (cfg('cmdModOnly')) {
-      const isMod        = !!(data.tags && data.tags.mod === '1');
+      const isMod         = !!(data.tags && data.tags.mod === '1');
       const isBroadcaster = badges.some(b => b.type === 'broadcaster');
       if (!isMod && !isBroadcaster) return;
     }
-
     const prefix = String(cfg('cmdPrefix') || '!').trim();
     if (!msg.startsWith(prefix)) return;
-
     const withoutPrefix = msg.slice(prefix.length).trim();
     const parts         = withoutPrefix.split(/\s+/);
     const cmd           = parts[0].toLowerCase();
     const arg           = parts[1] || '';
-
     const aliases = {
       start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
       stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
@@ -555,56 +532,30 @@ window.addEventListener('onEventReceived', function(obj) {
       addtime:    String(cfg('cmdAddTime')    || DEFAULT.cmdAddTime).toLowerCase(),
       removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
     };
-
     if (cmd === aliases.start) {
       if (!running && timeLeft > 0) startTimer();
-      elTimer.style.color = '';
       return;
     }
-
-    if (cmd === aliases.stop) {
-      pauseTimer();
-      return;
-    }
-
+    if (cmd === aliases.stop) { pauseTimer(); return; }
     if (cmd === aliases.reset) {
       pauseTimer();
       timeLeft = parseTimeField(cfg('initialTime')) || 3600;
-      elTimer.style.color = '';
       updateTimerDisplay();
       startTimer();
       return;
     }
-
     if (cmd === aliases.settime && arg) {
       const secs = parseTimeField(arg);
-      if (secs > 0) {
-        timeLeft = secs;
-        elTimer.style.color = '';
-        updateTimerDisplay();
-        if (!running) startTimer();
-      }
+      if (secs > 0) { timeLeft = secs; updateTimerDisplay(); if (!running) startTimer(); }
       return;
     }
-
-    if (cmd === aliases.addtime && arg) {
-      const secs = parseTimeField(arg);
-      if (secs > 0) addTime(secs);
-      return;
-    }
-
-    if (cmd === aliases.removetime && arg) {
-      const secs = parseTimeField(arg);
-      if (secs > 0) removeTime(secs);
-      return;
-    }
-
-    return; // commande inconnue, on ignore
+    if (cmd === aliases.addtime    && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
+    if (cmd === aliases.removetime && arg) { const s = parseTimeField(arg); if (s > 0) removeTime(s); return; }
+    return;
   }
 
-  /* --- Autres events (subs, tips, bits, follows) --- */
-  const data = obj.detail.event;
-
+  /* --- Subs / tips / bits / follows --- */
+  const data    = obj.detail.event;
   const eventId = listener + '_' + (data._id || data.name || '') + '_' + (data.amount || '');
   if (eventId === _lastEventId) return;
   _lastEventId = eventId;
@@ -612,20 +563,13 @@ window.addEventListener('onEventReceived', function(obj) {
 
   if (listener === 'subscriber-latest') {
     if (!cfg('subEnabled')) return;
-
     const isGift  = !!(data.gifted || data.isgift);
     const tierRaw = data.tier || 1000;
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
-
     const totalMonths = isGift ? 0 : safeInt(data.amount, 0);
     const isResub     = !isGift && totalMonths > 1;
-
-    let secsToAdd   = 0;
-    let type        = 'sub';
-    let bottomExtra = totalMonths >= 1 ? 'x' + totalMonths : null;
-    let goalAdd     = null;
-
+    let secsToAdd = 0, type = 'sub', bottomExtra = totalMonths >= 1 ? 'x' + totalMonths : null, goalAdd = null;
     if (isGift) {
       if (!cfg('giftEnabled')) return;
       type = 'gift';
@@ -637,37 +581,29 @@ window.addEventListener('onEventReceived', function(obj) {
       if (cfg('goalType') === 'sub') goalAdd = count;
     } else if (isResub) {
       if (!cfg('resubEnabled')) return;
-      type      = 'resub';
-      secsToAdd = tierSeconds('timePerResub', tierRaw);
+      type = 'resub'; secsToAdd = tierSeconds('timePerResub', tierRaw);
       if (cfg('goalType') === 'sub') goalAdd = 1;
     } else {
       secsToAdd = tierSeconds('timePerSub', tierRaw);
       if (cfg('goalType') === 'sub') goalAdd = 1;
     }
-
     enqueueEvent({ type, name: uname, bottomExtra, topTier: tier, secsToAdd, goalAdd, infoSecs: secsToAdd });
   }
 
   if (listener === 'tip-latest') {
     if (!cfg('donoEnabled')) return;
     const amount    = safeFloat(data.amount, 0);
-    const perUnit   = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
-    const secsEach  = safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
-    const secsToAdd = Math.floor(amount / perUnit) * secsEach;
+    const secsToAdd = Math.floor(amount / safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer)) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
     const uname     = data.username || 'Anonyme';
-    const goalAdd   = cfg('goalType') === 'dono' ? amount : null;
-    enqueueEvent({ type: 'dono', name: uname, bottomExtra: amount + '€', topTier: null, secsToAdd, goalAdd, infoSecs: secsToAdd });
+    enqueueEvent({ type: 'dono', name: uname, bottomExtra: amount + '€', topTier: null, secsToAdd, goalAdd: cfg('goalType') === 'dono' ? amount : null, infoSecs: secsToAdd });
   }
 
   if (listener === 'cheer-latest') {
     if (!cfg('bitsEnabled')) return;
     const bits      = safeInt(data.amount, 0);
-    const perUnit   = safeInt(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
-    const secsEach  = safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
-    const secsToAdd = Math.floor(bits / perUnit) * secsEach;
+    const secsToAdd = Math.floor(bits / safeInt(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer)) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
     const uname     = data.displayName || data.name || 'Anonyme';
-    const goalAdd   = cfg('goalType') === 'bits' ? bits : null;
-    enqueueEvent({ type: 'bits', name: uname, bottomExtra: bits + ' bits', topTier: null, secsToAdd, goalAdd, infoSecs: secsToAdd });
+    enqueueEvent({ type: 'bits', name: uname, bottomExtra: bits + ' bits', topTier: null, secsToAdd, goalAdd: cfg('goalType') === 'bits' ? bits : null, infoSecs: secsToAdd });
   }
 
   if (listener === 'follower-latest') {
@@ -678,12 +614,8 @@ window.addEventListener('onEventReceived', function(obj) {
   }
 });
 
-let _lastEventId = null;
-
 window.addEventListener('onWidgetLoad', function(obj) {
-  if (obj && obj.detail && obj.detail.fieldData) {
-    window.fieldData = obj.detail.fieldData;
-  }
+  if (obj && obj.detail && obj.detail.fieldData) window.fieldData = obj.detail.fieldData;
   init();
 });
 

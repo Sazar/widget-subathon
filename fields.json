@@ -9,6 +9,11 @@
     "label": "⏳ Temps maximum (HH:MM:SS) — 00:00:00 = aucune limite",
     "value": "00:00:00"
   },
+  "autoStart": {
+    "type": "checkbox",
+    "label": "▶️ Démarrer le timer automatiquement au chargement",
+    "value": true
+  },
   "lockOnZero": {
     "type": "checkbox",
     "label": "🔒 Bloquer l'ajout de temps si le timer est à 0",
