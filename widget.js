@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.51
+   SUBATHON WIDGET v2.52
    ============================================= */
 
 const DEFAULT = {
@@ -72,44 +72,39 @@ const GOOGLE_FONTS = {
 };
 
 /* =============================================
-   PERSISTANCE DU TIMER (SE KV store)
-   On stocke aussi le temps initial utilisé
-   lors de la dernière sauvegarde.
-   Si initialTime a changé → on repart de zéro.
+   PERSISTANCE (SE_API.store)
+   On stocke timeLeft, running, et le temps
+   initial en SECONDES pour comparaison fiable.
    ============================================= */
 const STORE_KEY_TIME    = 'subathon_timeLeft';
 const STORE_KEY_RUNNING = 'subathon_running';
-const STORE_KEY_INIT    = 'subathon_initialTime'; // temps initial sauvegardé
+const STORE_KEY_INIT    = 'subathon_initialSecs';
 const SAVE_INTERVAL_MS  = 5000;
 
 function storeSave() {
-  if (typeof SE_API !== 'undefined') {
-    SE_API.store.set(STORE_KEY_TIME,    timeLeft);
-    SE_API.store.set(STORE_KEY_RUNNING, running ? 1 : 0);
-    // Sauvegarde aussi le temps initial en vigueur
-    SE_API.store.set(STORE_KEY_INIT, String(cfg('initialTime') || DEFAULT.initialTime));
-  }
+  if (typeof SE_API === 'undefined') return;
+  SE_API.store.set(STORE_KEY_TIME,    timeLeft);
+  SE_API.store.set(STORE_KEY_RUNNING, running ? 1 : 0);
+  // Sauvegarde le temps initial courant en secondes
+  SE_API.store.set(STORE_KEY_INIT,    parseTimeField(cfg('initialTime')) || 3600);
 }
 
 function storeLoad(callback) {
-  if (typeof SE_API !== 'undefined') {
-    SE_API.store.get(STORE_KEY_TIME, function(savedTime) {
-      SE_API.store.get(STORE_KEY_RUNNING, function(savedRunning) {
-        SE_API.store.get(STORE_KEY_INIT, function(savedInitial) {
-          callback(
-            (savedTime    !== null && savedTime    !== undefined) ? parseInt(savedTime, 10)    : null,
-            (savedRunning !== null && savedRunning !== undefined) ? parseInt(savedRunning, 10) : null,
-            (savedInitial !== null && savedInitial !== undefined) ? String(savedInitial)       : null
-          );
-        });
+  if (typeof SE_API === 'undefined') { callback(null, null, null); return; }
+  SE_API.store.get(STORE_KEY_TIME, function(t) {
+    SE_API.store.get(STORE_KEY_RUNNING, function(r) {
+      SE_API.store.get(STORE_KEY_INIT, function(i) {
+        const savedTime    = (t !== null && t !== undefined) ? parseInt(t, 10)    : null;
+        const savedRunning = (r !== null && r !== undefined) ? parseInt(r, 10)    : null;
+        const savedInit    = (i !== null && i !== undefined) ? parseInt(i, 10)    : null;
+        callback(savedTime, savedRunning, savedInit);
       });
     });
-  } else {
-    callback(null, null, null);
-  }
+  });
 }
 
-let _initialized = false;
+let _initialized    = false;
+let _saveInterval   = null;
 
 function safeInt(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
@@ -187,7 +182,7 @@ const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
-   EVENT QUEUE — 2s minimum entre deux alertes
+   EVENT QUEUE
    ============================================= */
 const QUEUE_GAP  = 2000;
 const eventQueue = [];
@@ -384,67 +379,6 @@ function applyTimerSize() {
   elTimer.style.fontSize = size + 'px';
 }
 
-/* ===== INIT ===== */
-function init() {
-  if (_initialized) return;
-  _initialized = true;
-
-  applyGlobalFont();
-  applyColors();
-  applyAlertStyle();
-  applyTimerSize();
-
-  goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
-  goalCurrent = 0;
-  elGoalUnit.textContent  = goalUnitLabel();
-  elGoalTgt.textContent   = goalTarget;
-  elGoalCur.textContent   = 0;
-  elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
-
-  setIdle();
-
-  const currentInitial = String(cfg('initialTime') || DEFAULT.initialTime).trim();
-  const fallbackSecs   = parseTimeField(currentInitial) || 3600;
-
-  storeLoad(function(savedTime, savedRunning, savedInitial) {
-    const initialChanged = savedInitial !== null && savedInitial.trim() !== currentInitial;
-
-    if (!initialChanged && savedTime !== null && !isNaN(savedTime) && savedTime > 0) {
-      // Temps initial inchangé + timer sauvegardé → restaurer
-      timeLeft = savedTime;
-      updateTimerDisplay();
-      if (savedRunning === 1) {
-        startTimer();
-      } else {
-        running = false;
-        elTimer.style.color = '#ffffff99';
-      }
-    } else {
-      // Temps initial modifié OU premier lancement → repartir du temps initial
-      timeLeft = fallbackSecs;
-      updateTimerDisplay();
-      if (cfg('autoStart')) {
-        startTimer();
-      } else {
-        running = false;
-        elTimer.style.color = '#ffffff99';
-      }
-    }
-
-    // Sauvegarde auto toutes les 5s
-    setInterval(storeSave, SAVE_INTERVAL_MS);
-  });
-
-  startRotation();
-}
-
-function goalUnitLabel() {
-  const t = cfg('goalType');
-  if (t === 'dono') return '€';
-  if (t === 'bits') return 'bits';
-  return 'subs';
-}
-
 function applyColors() {
   const r = document.documentElement;
   const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
@@ -468,6 +402,7 @@ function applyColors() {
   elAlertBox.style.background = boxBg;
 }
 
+/* ===== TIMER ===== */
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   running = true;
@@ -487,10 +422,7 @@ function startTimer() {
 }
 
 function pauseTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
   storeSave();
 }
@@ -539,6 +471,14 @@ function updateTimerDisplay() {
     String(s).padStart(2, '0');
 }
 
+function goalUnitLabel() {
+  const t = cfg('goalType');
+  if (t === 'dono') return '€';
+  if (t === 'bits') return 'bits';
+  return 'subs';
+}
+
+/* ===== ALERT ===== */
 const TYPE_LABELS = {
   dono:   'Nouveau Don',
   bits:   'Cheers',
@@ -564,6 +504,100 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
     elAlertBox.classList.add('flash');
   }
 }
+
+/* ===== INIT ===== */
+function init() {
+  if (_initialized) return;
+  _initialized = true;
+
+  applyGlobalFont();
+  applyColors();
+  applyAlertStyle();
+  applyTimerSize();
+
+  goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
+  goalCurrent = 0;
+  elGoalUnit.textContent  = goalUnitLabel();
+  elGoalTgt.textContent   = goalTarget;
+  elGoalCur.textContent   = 0;
+  elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
+
+  setIdle();
+
+  // Temps initial courant en secondes (comparaison robuste)
+  const currentInitSecs = parseTimeField(cfg('initialTime')) || 3600;
+
+  storeLoad(function(savedTime, savedRunning, savedInitSecs) {
+    const initialChanged = (savedInitSecs !== null) && (savedInitSecs !== currentInitSecs);
+    const hasSavedTimer  = (savedTime !== null) && !isNaN(savedTime) && savedTime >= 0;
+
+    if (hasSavedTimer && !initialChanged) {
+      // --- Restaurer le timer sauvegardé ---
+      timeLeft = savedTime;
+      updateTimerDisplay();
+      if (savedTime > 0 && savedRunning === 1) {
+        startTimer();
+      } else {
+        running = false;
+        elTimer.style.color = savedTime <= 0 ? '#ffffff99' : '';
+      }
+    } else {
+      // --- Temps initial modifié ou premier lancement ---
+      timeLeft = currentInitSecs;
+      updateTimerDisplay();
+      if (cfg('autoStart') && timeLeft > 0) {
+        startTimer();
+      } else {
+        running = false;
+        elTimer.style.color = '#ffffff99';
+      }
+    }
+
+    // Sauvegarde auto toutes les 5s (une seule instance)
+    if (_saveInterval) clearInterval(_saveInterval);
+    _saveInterval = setInterval(storeSave, SAVE_INTERVAL_MS);
+  });
+
+  startRotation();
+}
+
+/* ===== onWidgetLoad : appelé aussi lors des sauvegardes de paramètres ===== */
+window.addEventListener('onWidgetLoad', function(obj) {
+  // Met à jour les fieldData puis applique les styles
+  // SANS toucher au timer si déjà initialisé
+  if (obj && obj.detail && obj.detail.fieldData) window.fieldData = obj.detail.fieldData;
+
+  if (!_initialized) {
+    init();
+    return;
+  }
+
+  // Widget déjà actif : recalcule styles et options visuelles uniquement
+  applyGlobalFont();
+  applyColors();
+  applyAlertStyle();
+  applyTimerSize();
+  elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
+  elGoalUnit.textContent  = goalUnitLabel();
+  elGoalTgt.textContent   = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
+
+  // Vérifie si le temps initial a changé
+  const currentInitSecs = parseTimeField(cfg('initialTime')) || 3600;
+  storeLoad(function(savedTime, savedRunning, savedInitSecs) {
+    if (savedInitSecs !== null && savedInitSecs !== currentInitSecs) {
+      // Temps initial modifié : reset du timer
+      pauseTimer();
+      timeLeft = currentInitSecs;
+      updateTimerDisplay();
+      if (cfg('autoStart') && timeLeft > 0) startTimer();
+      else { running = false; elTimer.style.color = '#ffffff99'; }
+      storeSave();
+    }
+    // Sinon : timer inchangé, continue de tourner
+  });
+});
+
+setTimeout(() => { if (!_initialized) init(); }, 500);
 
 /* ===== CHAT COMMANDS ===== */
 let _lastEventId = null;
@@ -596,11 +630,10 @@ window.addEventListener('onEventReceived', function(obj) {
       removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
     };
     if (cmd === aliases.start) {
-      if (!running && timeLeft > 0) startTimer();
-      storeSave();
+      if (!running && timeLeft > 0) { startTimer(); storeSave(); }
       return;
     }
-    if (cmd === aliases.stop) { pauseTimer(); return; }
+    if (cmd === aliases.stop)  { pauseTimer(); return; }
     if (cmd === aliases.reset) {
       pauseTimer();
       timeLeft = parseTimeField(cfg('initialTime')) || 3600;
@@ -678,10 +711,3 @@ window.addEventListener('onEventReceived', function(obj) {
     enqueueEvent({ type: 'follow', name: uname, bottomExtra: null, topTier: null, secsToAdd, goalAdd: null, infoSecs: secsToAdd });
   }
 });
-
-window.addEventListener('onWidgetLoad', function(obj) {
-  if (obj && obj.detail && obj.detail.fieldData) window.fieldData = obj.detail.fieldData;
-  init();
-});
-
-setTimeout(() => { if (!_initialized) init(); }, 500);
