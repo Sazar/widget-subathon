@@ -1,8 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v2.8
-   Persistance : SE_API.store uniquement.
-   Détection reload vs premier lancement
-   via timestamp (SK_STAMP).
+   SUBATHON WIDGET v2.9
+   Fix : timer bloqué à --:--:-- quand initialTime
+   est défini dans fieldData.
+   Fix : suppression alert-notch.
+   Persistance : SE_API.store + timestamp.
    ============================================= */
 
 const DEFAULT = {
@@ -75,44 +76,31 @@ const GOOGLE_FONTS = {
 };
 
 /* =============================================
-   STORE — SE_API.store uniquement
+   STORE
    SK_STAMP : timestamp Unix de la dernière save
    SK_TIME  : timeLeft en secondes
    SK_RUN   : 1 = running, 0 = paused
-   SK_INIT  : initialTime en secondes au moment
-              de la dernière save
+   SK_INIT  : initialTime en secondes au moment save
    ============================================= */
 const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
 
-/* Délai max (ms) pour considérer que c'est
-   un rechargement SE et non un vrai 1er lancement.
-   SE recharge l'iframe en ~1-3s après save. */
+/* Délai max (ms) : rechargement SE après save param */
 const RELOAD_WINDOW_MS = 15000;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
 }
-
 function storeSave() {
   storeSet(SK_TIME,  timeLeft);
   storeSet(SK_RUN,   running ? 1 : 0);
-  storeSet(SK_INIT,  parseTimeField(cfg('initialTime')) || 3600);
+  storeSet(SK_INIT,  parseTimeField(cfg('initialTime')));
   storeSet(SK_STAMP, Date.now());
 }
-
-/*
-  Lit les 4 clés en séquence puis appelle
-  callback(time, run, init, stamp)
-  Toutes les valeurs sont des entiers ou null.
-*/
 function storeLoad(cb) {
-  if (typeof SE_API === 'undefined') {
-    cb(null, null, null, null);
-    return;
-  }
+  if (typeof SE_API === 'undefined') { cb(null, null, null, null); return; }
   SE_API.store.get(SK_TIME, function(t) {
     SE_API.store.get(SK_RUN, function(r) {
       SE_API.store.get(SK_INIT, function(i) {
@@ -143,22 +131,23 @@ function safeFloat(val, fb) {
   return isNaN(n) ? fb : n;
 }
 function cfg(key) {
-  if (typeof fieldData !== 'undefined' && fieldData[key] !== undefined && fieldData[key] !== '')
+  if (typeof fieldData !== 'undefined' && fieldData !== null &&
+      fieldData[key] !== undefined && fieldData[key] !== null && fieldData[key] !== '')
     return fieldData[key];
   return DEFAULT[key];
 }
 function cfgBool(key) {
   const v = cfg(key);
   if (typeof v === 'boolean') return v;
-  if (v === 'true'  || v === '1' || v === 1)  return true;
-  if (v === 'false' || v === '0' || v === 0)  return false;
+  if (v === 'true'  || v === '1' || v === 1) return true;
+  if (v === 'false' || v === '0' || v === 0) return false;
   return Boolean(DEFAULT[key]);
 }
 function hexToRgba(hex, opacity) {
   const h = (hex || '#000000').replace('#', '');
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
   const a = Math.round(Math.min(100, Math.max(0, opacity))) / 100;
   return `rgba(${r},${g},${b},${a})`;
 }
@@ -197,6 +186,7 @@ let running       = false;
 let goalCurrent   = 0;
 let goalTarget    = 1;
 let timerInterval = null;
+let _initDone     = false;
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -306,7 +296,8 @@ function flipTo(text, animate) {
     return;
   }
   flipLocked = true;
-  activeSlot.classList.replace('active','flip-out') || (activeSlot.classList.remove('active'), activeSlot.classList.add('flip-out'));
+  activeSlot.classList.remove('active');
+  activeSlot.classList.add('flip-out');
   inactiveSlot.classList.remove('flip-out');
   inactiveSlot.classList.add('flip-in');
   setTimeout(() => {
@@ -354,18 +345,28 @@ function applyGlobalFont() {
   loadFont(f);
   document.documentElement.style.setProperty('--widget-font', `'${f}', 'Rajdhani', sans-serif`);
 }
-function applyAlertStyle() { elAlertName.dataset.eventSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize) + 'px'; }
-function applyTimerSize()  { elTimer.style.fontSize = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize) + 'px'; }
+function applyAlertStyle() {
+  elAlertName.dataset.eventSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize) + 'px';
+}
+function applyTimerSize() {
+  elTimer.style.fontSize = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize) + 'px';
+}
 function applyColors() {
   const root = document.documentElement;
   const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
   const goalBg = hexToRgba(cfg('goalBgColor'), safeInt(cfg('goalBgOpacity'), DEFAULT.goalBgOpacity));
   const glow   = hexToRgba(cfg('glowColor'),   safeInt(cfg('glowOpacity'),   DEFAULT.glowOpacity));
   const map = {
-    '--widget-width': cfg('widgetWidth'), '--accent': cfg('accent'), '--text-accent': cfg('accent'),
-    '--timer-bg': cfg('timerBg'), '--timer-text': cfg('timerText'),
-    '--goal-bg': goalBg, '--goal-text': cfg('goalText'),
-    '--info-bg': cfg('infoBg'), '--info-text': cfg('infoText'), '--glow': glow,
+    '--widget-width': cfg('widgetWidth'),
+    '--accent':       cfg('accent'),
+    '--text-accent':  cfg('accent'),
+    '--timer-bg':     cfg('timerBg'),
+    '--timer-text':   cfg('timerText'),
+    '--goal-bg':      goalBg,
+    '--goal-text':    cfg('goalText'),
+    '--info-bg':      cfg('infoBg'),
+    '--info-text':    cfg('infoText'),
+    '--glow':         glow,
   };
   for (const [k, v] of Object.entries(map)) if (v) root.style.setProperty(k, v);
   elAlertBox.style.background = boxBg;
@@ -384,7 +385,8 @@ function startTimer() {
       updateTimerDisplay();
       storeSave();
     } else {
-      running = false; clearInterval(timerInterval); timerInterval = null;
+      running = false;
+      clearInterval(timerInterval); timerInterval = null;
       elTimer.style.color = '#ffffff99';
       storeSave();
     }
@@ -410,9 +412,16 @@ function removeTime(seconds) {
   elTimer.classList.remove('pulse'); void elTimer.offsetWidth; elTimer.classList.add('pulse');
   setTimeout(() => elTimer.classList.remove('pulse'), 450);
   updateTimerDisplay(); storeSave();
-  if (timeLeft <= 0) { running = false; if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } elTimer.style.color = '#ffffff99'; }
+  if (timeLeft <= 0) {
+    running = false;
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    elTimer.style.color = '#ffffff99';
+  }
 }
-function addGoal(amount) { goalCurrent = Math.min(goalTarget, goalCurrent + amount); elGoalCur.textContent = goalCurrent; }
+function addGoal(amount) {
+  goalCurrent = Math.min(goalTarget, goalCurrent + amount);
+  elGoalCur.textContent = goalCurrent;
+}
 function updateTimerDisplay() {
   if (timeLeft < 0) { elTimer.textContent = '--:--:--'; return; }
   const tl = Math.max(0, timeLeft);
@@ -432,32 +441,41 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
   if (topTier) {
-    const base = type==='sub' ? 'Nouveau Sub' : type==='resub' ? 'Réabonnement' : type==='gift' ? 'Gift Sub' : (TYPE_LABELS[type]||type);
+    const base = type==='sub'   ? 'Nouveau Sub'
+               : type==='resub' ? 'Réabonnement'
+               : type==='gift'  ? 'Gift Sub'
+               : (TYPE_LABELS[type] || type);
     elAlertType.textContent = base + ' ' + topTier;
   } else {
     elAlertType.textContent = TYPE_LABELS[type] || type;
   }
   elAlertName.textContent = bottomExtra ? name + ' - ' + bottomExtra : name;
-  if (flash) { elAlertBox.classList.remove('flash'); void elAlertBox.offsetWidth; elAlertBox.classList.add('flash'); }
+  if (flash) {
+    elAlertBox.classList.remove('flash');
+    void elAlertBox.offsetWidth;
+    elAlertBox.classList.add('flash');
+  }
 }
 
 /* =============================================
    INIT
-   Logique de décision :
+   Logique :
+   - storeLoad lit SK_STAMP (timestamp dernière save)
+   - Si (now - stamp) < 15s ET initialTime inchangé
+     → rechargement SE : restaure timeLeft/running
+   - Sinon → premier lancement ou param modifié
+     → démarre depuis initialTime
 
-   storeLoad retourne stamp (timestamp dernière save).
-   Si (now - stamp) < RELOAD_WINDOW_MS
-     → c'est un rechargement SE après save param
-     → on restaure timeLeft/running depuis le store
-     → SAUF si initialTime a changé → reset
-   Sinon
-     → premier vrai lancement (ou store expiré)
-     → on démarre depuis initialTime
+   FIX v2.9 : parseTimeField retourne 0 si champ vide,
+   mais initialTime a toujours une valeur via cfg().
+   On force un minimum de 1s pour éviter timeLeft=0
+   qui bloquait startTimer (condition > 0).
    ============================================= */
 function init(fd) {
+  if (_initDone) return;
+  _initDone = true;
   if (fd) window.fieldData = fd;
 
-  // Applique les styles immédiatement
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   elGoalUnit.textContent = goalUnitLabel();
@@ -468,32 +486,36 @@ function init(fd) {
   setIdle();
   startRotation();
 
-  // Stoppe le timer en cours
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  running = false; timeLeft = -1;
-  updateTimerDisplay(); // affiche --:--:--
+  running = false;
+  timeLeft = -1;
+  updateTimerDisplay();
 
-  const currentInitSecs = parseTimeField(cfg('initialTime')) || 3600;
+  /* initialTime depuis fieldData ou DEFAULT */
+  const rawInitial = cfg('initialTime');
+  const currentInitSecs = parseTimeField(rawInitial);
+  /* Sécurité : si le champ retourne 0 (vide/invalide), on part sur 1h */
+  const safeCurrent = currentInitSecs > 0 ? currentInitSecs : 3600;
   const now = Date.now();
 
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
     const isReload    = savedStamp !== null && (now - savedStamp) < RELOAD_WINDOW_MS;
     const hasSave     = savedTime !== null && savedTime >= 0;
-    const initChanged = savedInit !== null && savedInit !== currentInitSecs;
+    const initChanged = savedInit !== null && savedInit !== safeCurrent;
 
     if (isReload && hasSave && !initChanged) {
-      // ✅ Rechargement SE (sauvegarde paramètre) : restaure le timer
+      /* Rechargement SE : restaure */
       timeLeft = savedTime;
       updateTimerDisplay();
       if (savedTime > 0 && savedRun === 1) {
         startTimer();
       } else {
-        elTimer.style.color = savedTime <= 0 ? '#ffffff99' : '';
+        if (savedTime <= 0) elTimer.style.color = '#ffffff99';
         storeSave();
       }
     } else {
-      // 🆕 Premier lancement OU initialTime modifié OU store expiré
-      timeLeft = currentInitSecs;
+      /* Premier lancement ou initialTime modifié */
+      timeLeft = safeCurrent;
       updateTimerDisplay();
       elTimer.style.color = '';
       if (cfgBool('autoStart') && timeLeft > 0) {
@@ -510,8 +532,8 @@ window.addEventListener('onWidgetLoad', function(obj) {
   init(fd);
 });
 
-// Fallback si onWidgetLoad ne se déclenche jamais
-setTimeout(() => { if (timeLeft === -1) init(undefined); }, 1500);
+/* Fallback si onWidgetLoad ne se déclenche jamais (éditeur hors ligne) */
+setTimeout(() => { if (!_initDone) init(undefined); }, 1500);
 
 /* =============================================
    CHAT COMMANDS & EVENTS
@@ -545,7 +567,8 @@ window.addEventListener('onEventReceived', function(obj) {
     if (cmd === al.start)  { if (!running && timeLeft > 0) { startTimer(); storeSave(); } return; }
     if (cmd === al.stop)   { pauseTimer(); return; }
     if (cmd === al.reset)  {
-      pauseTimer(); timeLeft = parseTimeField(cfg('initialTime')) || 3600;
+      pauseTimer();
+      timeLeft = safeCurrent || parseTimeField(cfg('initialTime')) || 3600;
       updateTimerDisplay(); storeSave(); startTimer(); return;
     }
     if (cmd === al.settime && arg) {
@@ -565,8 +588,7 @@ window.addEventListener('onEventReceived', function(obj) {
   setTimeout(() => { if (_lastEventId === eventId) _lastEventId = null; }, 3000);
 
   if (listener === 'subscriber-latest') {
-    if (!cfgBool('subEnabled')) return;
-    const isGift = !!(data.gifted || data.isgift);
+    const isGift  = !!(data.gifted || data.isgift);
     const tierRaw = data.tier || 1000;
     const uname   = data.displayName || data.name || 'Anonyme';
     const tier    = tierLabel(tierRaw);
@@ -586,6 +608,7 @@ window.addEventListener('onEventReceived', function(obj) {
       type = 'resub'; secsToAdd = tierSeconds('timePerResub', tierRaw);
       if (cfg('goalType') === 'sub') goalAdd = 1;
     } else {
+      if (!cfgBool('subEnabled')) return;
       secsToAdd = tierSeconds('timePerSub', tierRaw);
       if (cfg('goalType') === 'sub') goalAdd = 1;
     }
@@ -595,15 +618,17 @@ window.addEventListener('onEventReceived', function(obj) {
   if (listener === 'tip-latest') {
     if (!cfgBool('donoEnabled')) return;
     const amount = safeFloat(data.amount, 0);
-    const secsToAdd = Math.floor(amount / safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer)) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
-    enqueueEvent({ type: 'dono', name: data.username||'Anonyme', bottomExtra: amount+'€', topTier: null,
-      secsToAdd, goalAdd: cfg('goalType')==='dono' ? amount : null, infoSecs: secsToAdd });
+    const secsToAdd = Math.floor(amount / safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer))
+                      * safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
+    enqueueEvent({ type: 'dono', name: data.username||'Anonyme', bottomExtra: amount+'€',
+      topTier: null, secsToAdd, goalAdd: cfg('goalType')==='dono' ? amount : null, infoSecs: secsToAdd });
   }
 
   if (listener === 'cheer-latest') {
     if (!cfgBool('bitsEnabled')) return;
     const bits = safeInt(data.amount, 0);
-    const secsToAdd = Math.floor(bits / safeInt(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer)) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
+    const secsToAdd = Math.floor(bits / safeInt(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer))
+                      * safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
     enqueueEvent({ type: 'bits', name: data.displayName||data.name||'Anonyme', bottomExtra: bits+' bits',
       topTier: null, secsToAdd, goalAdd: cfg('goalType')==='bits' ? bits : null, infoSecs: secsToAdd });
   }

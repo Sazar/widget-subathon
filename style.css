@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.38
+   SUBATHON WIDGET v2.9
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -22,7 +22,6 @@
   --radius-large:    14px;
   --radius-small:    8px;
   --overlap:         18px;
-  --notch-r:         22px; /* rayon de l'encoche */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,7 +50,7 @@ body {
 .alert-box {
   background: rgba(14, 14, 20, 0.82);
   border-radius: var(--radius-large);
-  padding: 28px 22px 36px;
+  padding: 28px 22px 28px;
   text-align: center;
   height: 130px;
   width: 75%;
@@ -65,29 +64,6 @@ body {
   overflow: hidden;
 }
 
-/*
-  Encoche circulaire bas-gauche :
-  Un carré positionné dans le coin bas-gauche,
-  dont le border-radius crée un cercle.
-  Le box-shadow enorme vers l'exterieur remplit tout
-  sauf le cercle central = effet "trou".
-  La couleur du box-shadow = couleur du fond de alert-box.
-*/
-.alert-notch {
-  position: absolute;
-  bottom: calc(-1 * var(--notch-r));
-  left:   calc(-1 * var(--notch-r));
-  width:  calc(2 * var(--notch-r));
-  height: calc(2 * var(--notch-r));
-  border-radius: 50%;
-  /* box-shadow enorme qui peint tout autour du cercle = masque le coin */
-  box-shadow: 0 0 0 60px rgba(14, 14, 20, 0.82);
-  /* le cercle lui-meme est transparent */
-  background: transparent;
-  z-index: 2;
-  pointer-events: none;
-}
-
 .alert-type {
   font-size: 18px;
   font-weight: 600;
@@ -98,8 +74,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  position: relative;
-  z-index: 1;
 }
 
 .alert-name {
@@ -113,8 +87,6 @@ body {
   text-overflow: ellipsis;
   max-width: 100%;
   transition: font-size 0.2s ease;
-  position: relative;
-  z-index: 1;
 }
 
 .alert-name.idle {
@@ -138,7 +110,6 @@ body {
   z-index: 10;
   transform: rotate(-4deg);
   transform-origin: top left;
-
   background: var(--info-bg);
   color: var(--info-text);
   font-family: var(--widget-font);
@@ -148,11 +119,9 @@ body {
   white-space: nowrap;
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
-
   width: 100px;
   height: 24px;
   padding: 0;
-
   display: flex;
   align-items: center;
   justify-content: center;
@@ -180,14 +149,9 @@ body {
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(0);
 }
 
-.info-slot.active {
-  opacity: 1;
-  transform: translateY(0);
-}
-
+.info-slot.active { opacity: 1; }
 .info-slot.flip-out { animation: slotOut 0.25s cubic-bezier(0.4,0,1,1) forwards; }
 .info-slot.flip-in  { animation: slotIn  0.28s cubic-bezier(0,0,0.2,1)  forwards; }
 
@@ -215,13 +179,11 @@ body {
   z-index: 10;
   transform: rotate(4deg);
   transform-origin: top right;
-
   background: var(--goal-bg);
   border-radius: var(--radius-small);
   box-shadow: 0 0 14px var(--glow);
   height: 24px;
   padding: 0 10px;
-
   display: flex;
   align-items: center;
   gap: 2px;
