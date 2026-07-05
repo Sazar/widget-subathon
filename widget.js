@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.5
+   SUBATHON WIDGET v2.51
    ============================================= */
 
 const DEFAULT = {
@@ -73,18 +73,21 @@ const GOOGLE_FONTS = {
 
 /* =============================================
    PERSISTANCE DU TIMER (SE KV store)
-   SE fournit window.SE_API pour lire/écrire.
-   On sauvegarde timeLeft + running toutes les
-   5 secondes ET à chaque modification.
+   On stocke aussi le temps initial utilisé
+   lors de la dernière sauvegarde.
+   Si initialTime a changé → on repart de zéro.
    ============================================= */
 const STORE_KEY_TIME    = 'subathon_timeLeft';
 const STORE_KEY_RUNNING = 'subathon_running';
+const STORE_KEY_INIT    = 'subathon_initialTime'; // temps initial sauvegardé
 const SAVE_INTERVAL_MS  = 5000;
 
 function storeSave() {
   if (typeof SE_API !== 'undefined') {
     SE_API.store.set(STORE_KEY_TIME,    timeLeft);
     SE_API.store.set(STORE_KEY_RUNNING, running ? 1 : 0);
+    // Sauvegarde aussi le temps initial en vigueur
+    SE_API.store.set(STORE_KEY_INIT, String(cfg('initialTime') || DEFAULT.initialTime));
   }
 }
 
@@ -92,14 +95,17 @@ function storeLoad(callback) {
   if (typeof SE_API !== 'undefined') {
     SE_API.store.get(STORE_KEY_TIME, function(savedTime) {
       SE_API.store.get(STORE_KEY_RUNNING, function(savedRunning) {
-        callback(
-          (savedTime    !== null && savedTime    !== undefined) ? parseInt(savedTime, 10)    : null,
-          (savedRunning !== null && savedRunning !== undefined) ? parseInt(savedRunning, 10) : null
-        );
+        SE_API.store.get(STORE_KEY_INIT, function(savedInitial) {
+          callback(
+            (savedTime    !== null && savedTime    !== undefined) ? parseInt(savedTime, 10)    : null,
+            (savedRunning !== null && savedRunning !== undefined) ? parseInt(savedRunning, 10) : null,
+            (savedInitial !== null && savedInitial !== undefined) ? String(savedInitial)       : null
+          );
+        });
       });
     });
   } else {
-    callback(null, null);
+    callback(null, null, null);
   }
 }
 
@@ -397,12 +403,14 @@ function init() {
 
   setIdle();
 
-  // Charge le timer sauvegardé, sinon part du temps initial
-  storeLoad(function(savedTime, savedRunning) {
-    const fallback = parseTimeField(cfg('initialTime')) || 3600;
+  const currentInitial = String(cfg('initialTime') || DEFAULT.initialTime).trim();
+  const fallbackSecs   = parseTimeField(currentInitial) || 3600;
 
-    if (savedTime !== null && !isNaN(savedTime) && savedTime > 0) {
-      // Timer existant → restaurer
+  storeLoad(function(savedTime, savedRunning, savedInitial) {
+    const initialChanged = savedInitial !== null && savedInitial.trim() !== currentInitial;
+
+    if (!initialChanged && savedTime !== null && !isNaN(savedTime) && savedTime > 0) {
+      // Temps initial inchangé + timer sauvegardé → restaurer
       timeLeft = savedTime;
       updateTimerDisplay();
       if (savedRunning === 1) {
@@ -412,8 +420,8 @@ function init() {
         elTimer.style.color = '#ffffff99';
       }
     } else {
-      // Aucun timer sauvegardé → démarrage normal
-      timeLeft = fallback;
+      // Temps initial modifié OU premier lancement → repartir du temps initial
+      timeLeft = fallbackSecs;
       updateTimerDisplay();
       if (cfg('autoStart')) {
         startTimer();
@@ -423,7 +431,7 @@ function init() {
       }
     }
 
-    // Sauvegarde automatique toutes les 5s
+    // Sauvegarde auto toutes les 5s
     setInterval(storeSave, SAVE_INTERVAL_MS);
   });
 
