@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.52
+   SUBATHON WIDGET v2.6
    ============================================= */
 
 const DEFAULT = {
@@ -72,59 +72,52 @@ const GOOGLE_FONTS = {
 };
 
 /* =============================================
-   PERSISTANCE (SE_API.store)
-   On stocke timeLeft, running, et le temps
-   initial en SECONDES pour comparaison fiable.
+   STORE KEYS
    ============================================= */
-const STORE_KEY_TIME    = 'subathon_timeLeft';
-const STORE_KEY_RUNNING = 'subathon_running';
-const STORE_KEY_INIT    = 'subathon_initialSecs';
-const SAVE_INTERVAL_MS  = 5000;
+const SK_TIME    = 'subathon_timeLeft';
+const SK_RUNNING = 'subathon_running';
+const SK_INIT    = 'subathon_initialSecs';
 
+/* Sauvegarde instantanée — appelée à chaque seconde + événements */
 function storeSave() {
   if (typeof SE_API === 'undefined') return;
-  SE_API.store.set(STORE_KEY_TIME,    timeLeft);
-  SE_API.store.set(STORE_KEY_RUNNING, running ? 1 : 0);
-  // Sauvegarde le temps initial courant en secondes
-  SE_API.store.set(STORE_KEY_INIT,    parseTimeField(cfg('initialTime')) || 3600);
+  SE_API.store.set(SK_TIME,    timeLeft);
+  SE_API.store.set(SK_RUNNING, running ? 1 : 0);
+  SE_API.store.set(SK_INIT,    parseTimeField(cfg('initialTime')) || 3600);
 }
 
 function storeLoad(callback) {
   if (typeof SE_API === 'undefined') { callback(null, null, null); return; }
-  SE_API.store.get(STORE_KEY_TIME, function(t) {
-    SE_API.store.get(STORE_KEY_RUNNING, function(r) {
-      SE_API.store.get(STORE_KEY_INIT, function(i) {
-        const savedTime    = (t !== null && t !== undefined) ? parseInt(t, 10)    : null;
-        const savedRunning = (r !== null && r !== undefined) ? parseInt(r, 10)    : null;
-        const savedInit    = (i !== null && i !== undefined) ? parseInt(i, 10)    : null;
+  SE_API.store.get(SK_TIME, function(t) {
+    SE_API.store.get(SK_RUNNING, function(r) {
+      SE_API.store.get(SK_INIT, function(i) {
+        const savedTime    = (t !== null && t !== undefined && t !== '') ? parseInt(t, 10)  : null;
+        const savedRunning = (r !== null && r !== undefined && r !== '') ? parseInt(r, 10)  : null;
+        const savedInit    = (i !== null && i !== undefined && i !== '') ? parseInt(i, 10)  : null;
         callback(savedTime, savedRunning, savedInit);
       });
     });
   });
 }
 
-let _initialized    = false;
-let _saveInterval   = null;
-
+/* =============================================
+   UTILS
+   ============================================= */
 function safeInt(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
   const n = parseInt(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''), 10);
   return isNaN(n) ? fallback : n;
 }
-
 function safeFloat(val, fallback) {
   if (val === undefined || val === null || val === '') return fallback;
   const n = parseFloat(String(val).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? fallback : n;
 }
-
 function cfg(key) {
-  if (typeof fieldData !== 'undefined' && fieldData[key] !== undefined && fieldData[key] !== '') {
+  if (typeof fieldData !== 'undefined' && fieldData[key] !== undefined && fieldData[key] !== '')
     return fieldData[key];
-  }
   return DEFAULT[key];
 }
-
 function hexToRgba(hex, opacity) {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
@@ -133,7 +126,6 @@ function hexToRgba(hex, opacity) {
   const a = Math.round(Math.min(100, Math.max(0, opacity))) / 100;
   return `rgba(${r},${g},${b},${a})`;
 }
-
 function parseTimeField(val) {
   const s = String(val || '').trim();
   if (!s) return 0;
@@ -144,7 +136,6 @@ function parseTimeField(val) {
   const n = parseInt(s, 10);
   return isNaN(n) ? 0 : n;
 }
-
 function tierSeconds(prefix, tierRaw) {
   const t = String(tierRaw || '').toLowerCase();
   if (t === 'prime') return safeInt(cfg(prefix + 'Prime'), DEFAULT[prefix + 'Prime']);
@@ -153,7 +144,6 @@ function tierSeconds(prefix, tierRaw) {
   if (n >= 2000) return safeInt(cfg(prefix + 'T2'), DEFAULT[prefix + 'T2']);
   return safeInt(cfg(prefix + 'T1'), DEFAULT[prefix + 'T1']);
 }
-
 function tierLabel(tierRaw) {
   const t = String(tierRaw || '').toLowerCase();
   if (t === 'prime') return 'Prime';
@@ -163,7 +153,10 @@ function tierLabel(tierRaw) {
   return 'T1';
 }
 
-let timeLeft      = 0;
+/* =============================================
+   STATE
+   ============================================= */
+let timeLeft      = -1; // -1 = pas encore chargé, on affiche rien
 let running       = false;
 let goalCurrent   = 0;
 let goalTarget    = 1;
@@ -193,7 +186,6 @@ function enqueueEvent(payload) {
   eventQueue.push(payload);
   drainQueue();
 }
-
 function drainQueue() {
   if (queueBusy || eventQueue.length === 0) return;
   const now  = Date.now();
@@ -207,7 +199,6 @@ function drainQueue() {
     drainQueue();
   }, wait);
 }
-
 function fireEvent({ type, name, bottomExtra, topTier, secsToAdd, goalAdd, infoSecs }) {
   if (secsToAdd) addTime(secsToAdd);
   if (goalAdd)   addGoal(goalAdd);
@@ -226,7 +217,6 @@ function buildIdleText() {
   if (cfg('followEnabled')) parts.push('Follow');
   return parts.length ? parts.join('/') : 'Subathon';
 }
-
 function setIdle() {
   elAlertType.textContent = buildIdleText();
   elAlertName.textContent = 'Pour ajouter du temps';
@@ -236,7 +226,6 @@ function setIdle() {
 
 const IDLE_DELAY  = 60 * 1000;
 const CYCLE_DELAY = 20 * 1000;
-
 let lastEventState  = null;
 let idleTimer       = null;
 let cycleInterval   = null;
@@ -246,7 +235,6 @@ function resetIdleCycle() {
   if (idleTimer)     { clearTimeout(idleTimer);      idleTimer     = null; }
   if (cycleInterval) { clearInterval(cycleInterval); cycleInterval = null; }
 }
-
 function startIdleCycle() {
   resetIdleCycle();
   if (!lastEventState) return;
@@ -255,9 +243,8 @@ function startIdleCycle() {
     setIdle();
     cycleInterval = setInterval(() => {
       cycleShowIdle = !cycleShowIdle;
-      if (cycleShowIdle) {
-        setIdle();
-      } else {
+      if (cycleShowIdle) setIdle();
+      else {
         const { type, name, bottomExtra, topTier } = lastEventState;
         showAlert(type, name, bottomExtra, topTier, false);
       }
@@ -281,7 +268,6 @@ function formatTimeLabel(s) {
   const m = Math.round((s % 3600) / 60);
   return h + 'h' + (m ? m + 'min' : '');
 }
-
 function buildRotationSlides() {
   const t1    = safeInt(cfg('timePerSubT1'),    DEFAULT.timePerSubT1);
   const t2    = safeInt(cfg('timePerSubT2'),    DEFAULT.timePerSubT2);
@@ -296,7 +282,6 @@ function buildRotationSlides() {
   if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
   return slides;
 }
-
 function flipTo(text, animate) {
   if (animate && flipLocked) return;
   inactiveSlot.textContent = text;
@@ -320,7 +305,6 @@ function flipTo(text, animate) {
     flipLocked = false;
   }, 320);
 }
-
 function rotationTick() {
   if (rotationLocked) return;
   const slides = buildRotationSlides();
@@ -328,7 +312,6 @@ function rotationTick() {
   flipTo(slides[rotationIndex], true);
   rotationIndex = (rotationIndex + 1) % slides.length;
 }
-
 function startRotation() {
   if (rotationInterval) clearInterval(rotationInterval);
   rotationIndex  = 0;
@@ -338,7 +321,6 @@ function startRotation() {
   rotationIndex = 1;
   rotationInterval = setInterval(rotationTick, 5000);
 }
-
 function showInfoBox(seconds) {
   lastEventSecs  = seconds;
   rotationLocked = true;
@@ -362,23 +344,19 @@ function loadFont(fontName) {
   link.href = `https://fonts.googleapis.com/css2?family=${query}&display=swap`;
   document.head.appendChild(link);
 }
-
 function applyGlobalFont() {
   const font = String(cfg('widgetFont') || DEFAULT.widgetFont);
   loadFont(font);
   document.documentElement.style.setProperty('--widget-font', `'${font}', 'Rajdhani', sans-serif`);
 }
-
 function applyAlertStyle() {
   const fontSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize);
   elAlertName.dataset.eventSize = fontSize + 'px';
 }
-
 function applyTimerSize() {
   const size = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize);
   elTimer.style.fontSize = size + 'px';
 }
-
 function applyColors() {
   const r = document.documentElement;
   const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
@@ -402,7 +380,9 @@ function applyColors() {
   elAlertBox.style.background = boxBg;
 }
 
-/* ===== TIMER ===== */
+/* =============================================
+   TIMER
+   ============================================= */
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   running = true;
@@ -411,6 +391,7 @@ function startTimer() {
     if (timeLeft > 0) {
       timeLeft--;
       updateTimerDisplay();
+      storeSave(); // sauvegarde à chaque seconde
     } else {
       running = false;
       clearInterval(timerInterval);
@@ -420,13 +401,11 @@ function startTimer() {
     }
   }, 1000);
 }
-
 function pauseTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
   storeSave();
 }
-
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
   timeLeft += seconds;
@@ -440,7 +419,6 @@ function addTime(seconds) {
   updateTimerDisplay();
   storeSave();
 }
-
 function removeTime(seconds) {
   timeLeft = Math.max(0, timeLeft - seconds);
   elTimer.classList.remove('pulse');
@@ -455,13 +433,12 @@ function removeTime(seconds) {
     elTimer.style.color = '#ffffff99';
   }
 }
-
 function addGoal(amount) {
   goalCurrent = Math.min(goalTarget, goalCurrent + amount);
   elGoalCur.textContent = goalCurrent;
 }
-
 function updateTimerDisplay() {
+  if (timeLeft < 0) return; // pas encore chargé
   const h = Math.floor(timeLeft / 3600);
   const m = Math.floor((timeLeft % 3600) / 60);
   const s = timeLeft % 60;
@@ -470,7 +447,6 @@ function updateTimerDisplay() {
     String(m).padStart(2, '0') + ':' +
     String(s).padStart(2, '0');
 }
-
 function goalUnitLabel() {
   const t = cfg('goalType');
   if (t === 'dono') return '€';
@@ -484,7 +460,6 @@ const TYPE_LABELS = {
   bits:   'Cheers',
   follow: 'Nouveau Follow',
 };
-
 function showAlert(type, name, bottomExtra, topTier, flash = true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
@@ -505,10 +480,12 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   }
 }
 
-/* ===== INIT ===== */
-function init() {
-  if (_initialized) return;
-  _initialized = true;
+/* =============================================
+   INIT — unique point d'entrée
+   Appelé une seule fois par onWidgetLoad
+   ============================================= */
+function init(fieldDataObj) {
+  if (fieldDataObj) window.fieldData = fieldDataObj;
 
   applyGlobalFont();
   applyColors();
@@ -523,16 +500,16 @@ function init() {
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
   setIdle();
+  startRotation();
 
-  // Temps initial courant en secondes (comparaison robuste)
   const currentInitSecs = parseTimeField(cfg('initialTime')) || 3600;
 
   storeLoad(function(savedTime, savedRunning, savedInitSecs) {
-    const initialChanged = (savedInitSecs !== null) && (savedInitSecs !== currentInitSecs);
-    const hasSavedTimer  = (savedTime !== null) && !isNaN(savedTime) && savedTime >= 0;
+    const hasSave        = savedTime !== null && !isNaN(savedTime);
+    const initChanged    = hasSave && savedInitSecs !== null && savedInitSecs !== currentInitSecs;
 
-    if (hasSavedTimer && !initialChanged) {
-      // --- Restaurer le timer sauvegardé ---
+    if (hasSave && !initChanged) {
+      // ✅ Restauration : SE a rechargé l'iframe (sauvegarde paramètres)
       timeLeft = savedTime;
       updateTimerDisplay();
       if (savedTime > 0 && savedRunning === 1) {
@@ -540,66 +517,41 @@ function init() {
       } else {
         running = false;
         elTimer.style.color = savedTime <= 0 ? '#ffffff99' : '';
+        // Sauvegarde immédiate pour écrire le bon SK_INIT
+        storeSave();
       }
     } else {
-      // --- Temps initial modifié ou premier lancement ---
+      // Premier lancement OU temps initial modifié
       timeLeft = currentInitSecs;
       updateTimerDisplay();
       if (cfg('autoStart') && timeLeft > 0) {
         startTimer();
       } else {
         running = false;
-        elTimer.style.color = '#ffffff99';
+        elTimer.style.color = timeLeft <= 0 ? '#ffffff99' : '';
+        storeSave();
       }
     }
-
-    // Sauvegarde auto toutes les 5s (une seule instance)
-    if (_saveInterval) clearInterval(_saveInterval);
-    _saveInterval = setInterval(storeSave, SAVE_INTERVAL_MS);
   });
-
-  startRotation();
 }
 
-/* ===== onWidgetLoad : appelé aussi lors des sauvegardes de paramètres ===== */
+/* =============================================
+   onWidgetLoad — SE appelle ça à CHAQUE sauvegarde
+   (rechargement complet de l'iframe)
+   ============================================= */
 window.addEventListener('onWidgetLoad', function(obj) {
-  // Met à jour les fieldData puis applique les styles
-  // SANS toucher au timer si déjà initialisé
-  if (obj && obj.detail && obj.detail.fieldData) window.fieldData = obj.detail.fieldData;
-
-  if (!_initialized) {
-    init();
-    return;
-  }
-
-  // Widget déjà actif : recalcule styles et options visuelles uniquement
-  applyGlobalFont();
-  applyColors();
-  applyAlertStyle();
-  applyTimerSize();
-  elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
-  elGoalUnit.textContent  = goalUnitLabel();
-  elGoalTgt.textContent   = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
-
-  // Vérifie si le temps initial a changé
-  const currentInitSecs = parseTimeField(cfg('initialTime')) || 3600;
-  storeLoad(function(savedTime, savedRunning, savedInitSecs) {
-    if (savedInitSecs !== null && savedInitSecs !== currentInitSecs) {
-      // Temps initial modifié : reset du timer
-      pauseTimer();
-      timeLeft = currentInitSecs;
-      updateTimerDisplay();
-      if (cfg('autoStart') && timeLeft > 0) startTimer();
-      else { running = false; elTimer.style.color = '#ffffff99'; }
-      storeSave();
-    }
-    // Sinon : timer inchangé, continue de tourner
-  });
+  const fd = (obj && obj.detail && obj.detail.fieldData) ? obj.detail.fieldData : undefined;
+  init(fd);
 });
 
-setTimeout(() => { if (!_initialized) init(); }, 500);
+// Fallback si onWidgetLoad ne se déclenche pas
+setTimeout(() => {
+  if (timeLeft === -1) init(undefined);
+}, 800);
 
-/* ===== CHAT COMMANDS ===== */
+/* =============================================
+   CHAT COMMANDS & EVENTS
+   ============================================= */
 let _lastEventId = null;
 
 window.addEventListener('onEventReceived', function(obj) {
@@ -617,10 +569,9 @@ window.addEventListener('onEventReceived', function(obj) {
     }
     const prefix = String(cfg('cmdPrefix') || '!').trim();
     if (!msg.startsWith(prefix)) return;
-    const withoutPrefix = msg.slice(prefix.length).trim();
-    const parts         = withoutPrefix.split(/\s+/);
-    const cmd           = parts[0].toLowerCase();
-    const arg           = parts[1] || '';
+    const parts = msg.slice(prefix.length).trim().split(/\s+/);
+    const cmd   = parts[0].toLowerCase();
+    const arg   = parts[1] || '';
     const aliases = {
       start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
       stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
