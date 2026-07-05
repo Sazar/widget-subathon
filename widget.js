@@ -1,11 +1,10 @@
 /* =============================================
-   SUBATHON WIDGET v2.38
+   SUBATHON WIDGET v2.39
    ============================================= */
 
 const DEFAULT = {
-  initialHours:     1,
-  initialMinutes:   0,
-  initialSeconds:   0,
+  initialTime:      '01:00:00',
+  lockOnZero:       false,
   timePerSubT1:     300,
   timePerSubT2:     600,
   timePerSubT3:     900,
@@ -89,6 +88,23 @@ function hexToRgba(hex, opacity) {
   const b = parseInt(h.substring(4, 6), 16);
   const a = Math.round(Math.min(100, Math.max(0, opacity))) / 100;
   return `rgba(${r},${g},${b},${a})`;
+}
+
+/**
+ * Parse "HH:MM:SS" → secondes totales.
+ * Accepte aussi "MM:SS" et un nombre brut (rétrocompat).
+ */
+function parseInitialTime(val) {
+  const s = String(val || '').trim();
+  // HH:MM:SS
+  const full = s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);
+  if (full) return parseInt(full[1], 10) * 3600 + parseInt(full[2], 10) * 60 + parseInt(full[3], 10);
+  // MM:SS
+  const short = s.match(/^(\d+):(\d{1,2})$/);
+  if (short) return parseInt(short[1], 10) * 60 + parseInt(short[2], 10);
+  // Nombre brut
+  const n = parseInt(s, 10);
+  return isNaN(n) ? 3600 : n;
 }
 
 function tierSeconds(prefix, tierRaw) {
@@ -303,11 +319,7 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  const h = safeInt(cfg('initialHours'),   DEFAULT.initialHours);
-  const m = safeInt(cfg('initialMinutes'), DEFAULT.initialMinutes);
-  const s = safeInt(cfg('initialSeconds'), DEFAULT.initialSeconds);
-  timeLeft    = h * 3600 + m * 60 + s;
-
+  timeLeft    = parseInitialTime(cfg('initialTime'));
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
 
@@ -367,7 +379,13 @@ function startTimer() {
   }, 1000);
 }
 
+/**
+ * Tente d'ajouter du temps.
+ * Si lockOnZero est activé et que le timer est à 0, on ignore silencieusement.
+ */
 function addTime(seconds) {
+  if (cfg('lockOnZero') && timeLeft <= 0) return;
+
   timeLeft += seconds;
   if (!running && timeLeft > 0) startTimer();
   elTimer.classList.remove('pulse');

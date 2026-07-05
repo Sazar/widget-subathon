@@ -1,7 +1,14 @@
 {
-  "initialHours":   { "type": "number", "label": "⏱ Temps initial — Heures",   "value": 1,  "step": 1, "min": 0 },
-  "initialMinutes": { "type": "number", "label": "⏱ Temps initial — Minutes",  "value": 0,  "step": 1, "min": 0, "max": 59 },
-  "initialSeconds": { "type": "number", "label": "⏱ Temps initial — Secondes", "value": 0,  "step": 1, "min": 0, "max": 59 },
+  "initialTime": {
+    "type": "text",
+    "label": "⏱ Temps initial (HH:MM:SS)",
+    "value": "01:00:00"
+  },
+  "lockOnZero": {
+    "type": "checkbox",
+    "label": "🔒 Bloquer l'ajout de temps si le timer est à 0",
+    "value": false
+  },
 
   "subEnabled":      { "type": "checkbox", "label": "✅ Activer : Subs",                    "value": true },
   "timePerSubT1":    { "type": "number",   "label": "⏱ Secondes / Sub Tier 1",             "value": 300,  "step": 1, "min": 0 },
