@@ -6,8 +6,8 @@
   },
   "maxTime": {
     "type": "text",
-    "label": "⏳ Temps maximum (HH:MM:SS) — laisser vide pour désactiver",
-    "value": ""
+    "label": "⏳ Temps maximum (HH:MM:SS) — 00:00:00 = aucune limite",
+    "value": "00:00:00"
   },
   "lockOnZero": {
     "type": "checkbox",

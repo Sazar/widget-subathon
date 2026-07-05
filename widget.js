@@ -1,10 +1,10 @@
 /* =============================================
-   SUBATHON WIDGET v2.40
+   SUBATHON WIDGET v2.41
    ============================================= */
 
 const DEFAULT = {
   initialTime:      '01:00:00',
-  maxTime:          '',
+  maxTime:          '00:00:00',
   lockOnZero:       false,
   timePerSubT1:     300,
   timePerSubT2:     600,
@@ -93,18 +93,18 @@ function hexToRgba(hex, opacity) {
 
 /**
  * Parse "HH:MM:SS" → secondes totales.
- * Accepte aussi "MM:SS" et un nombre brut (rétrocompat).
- * Retourne null si la valeur est vide ou invalide.
+ * Accepte aussi "MM:SS" et un nombre brut.
+ * Retourne 0 si vide ou invalide.
  */
 function parseTimeField(val) {
   const s = String(val || '').trim();
-  if (!s) return null;
+  if (!s) return 0;
   const full = s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);
   if (full) return parseInt(full[1], 10) * 3600 + parseInt(full[2], 10) * 60 + parseInt(full[3], 10);
   const short = s.match(/^(\d+):(\d{1,2})$/);
   if (short) return parseInt(short[1], 10) * 60 + parseInt(short[2], 10);
   const n = parseInt(s, 10);
-  return isNaN(n) ? null : n;
+  return isNaN(n) ? 0 : n;
 }
 
 function tierSeconds(prefix, tierRaw) {
@@ -319,7 +319,7 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft    = parseTimeField(cfg('initialTime')) ?? 3600;
+  timeLeft    = parseTimeField(cfg('initialTime')) || 3600;
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
 
@@ -380,17 +380,17 @@ function startTimer() {
 }
 
 /**
- * Ajoute du temps en respectant le plafond maxTime si défini.
- * Si lockOnZero est activé et que le timer est à 0, on ignore.
+ * Ajoute du temps.
+ * - lockOnZero : bloque si timer à 0
+ * - maxTime    : plafonne le timer (00:00:00 = pas de limite)
  */
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
 
   timeLeft += seconds;
 
-  // Appliquer le plafond
   const maxSecs = parseTimeField(cfg('maxTime'));
-  if (maxSecs !== null && maxSecs > 0 && timeLeft > maxSecs) {
+  if (maxSecs > 0 && timeLeft > maxSecs) {
     timeLeft = maxSecs;
   }
 
