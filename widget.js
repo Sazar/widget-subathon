@@ -1,10 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v3.0
-   Fix majeur : suppression du guard _initDone.
-   init() peut s'exécuter à chaque onWidgetLoad
-   pour capturer le nouveau fieldData après save.
-   La détection rechargement vs reset se fait
-   uniquement via savedInit !== safeCurrent.
+   SUBATHON WIDGET v3.1 DEBUG
+   On affiche safeCurrent dans le timer IMMEDIATEMENT
+   avant meme de lire le store.
+   storeLoad ne fait que corriger si besoin.
    ============================================= */
 
 const DEFAULT = {
@@ -76,18 +74,10 @@ const GOOGLE_FONTS = {
   'Play':             'Play:wght@400;700',
 };
 
-/* =============================================
-   STORE
-   SK_STAMP : timestamp Unix de la dernière save
-   SK_TIME  : timeLeft en secondes
-   SK_RUN   : 1 = running, 0 = paused
-   SK_INIT  : initialTime en secondes lors de la save
-   ============================================= */
 const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
-
 const RELOAD_WINDOW_MS = 12000;
 
 function storeSet(key, val) {
@@ -117,9 +107,6 @@ function storeLoad(cb) {
   });
 }
 
-/* =============================================
-   UTILS
-   ============================================= */
 function safeInt(val, fb) {
   if (val === undefined || val === null || val === '') return fb;
   const n = parseInt(String(val).replace(/[^0-9\-]/g,''), 10);
@@ -178,15 +165,12 @@ function tierLabel(tierRaw) {
   return 'T1';
 }
 
-/* =============================================
-   STATE
-   ============================================= */
 let timeLeft      = -1;
 let running       = false;
 let goalCurrent   = 0;
 let goalTarget    = 1;
 let timerInterval = null;
-let safeCurrent   = 3600; // exposé globalement pour !reset
+let safeCurrent   = 3600;
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -200,9 +184,6 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
-/* =============================================
-   EVENT QUEUE
-   ============================================= */
 const QUEUE_GAP  = 2000;
 const eventQueue = [];
 let   queueBusy  = false;
@@ -213,10 +194,7 @@ function drainQueue() {
   if (queueBusy||!eventQueue.length) return;
   const wait = Math.max(0,QUEUE_GAP-(Date.now()-lastFired));
   queueBusy = true;
-  setTimeout(()=>{
-    fireEvent(eventQueue.shift());
-    lastFired=Date.now(); queueBusy=false; drainQueue();
-  },wait);
+  setTimeout(()=>{ fireEvent(eventQueue.shift()); lastFired=Date.now(); queueBusy=false; drainQueue(); },wait);
 }
 function fireEvent({type,name,bottomExtra,topTier,secsToAdd,goalAdd,infoSecs}) {
   if (secsToAdd) addTime(secsToAdd);
@@ -227,7 +205,6 @@ function fireEvent({type,name,bottomExtra,topTier,secsToAdd,goalAdd,infoSecs}) {
   startIdleCycle();
 }
 
-/* ===== IDLE ===== */
 function buildIdleText() {
   const parts=[];
   if (cfgBool('subEnabled')||cfgBool('resubEnabled')||cfgBool('giftEnabled')) parts.push('Subs');
@@ -261,13 +238,12 @@ function startIdleCycle(){
   },IDLE_DELAY);
 }
 
-/* ===== FLIP ROTATOR ===== */
 let activeSlot=elSlotA, inactiveSlot=elSlotB;
 let flipLocked=false,rotationLocked=false,rotationIndex=0;
 let rotationInterval=null,lastEventSecs=null;
 
 function formatTimeLabel(s){
-  if(s<60)   return s+'s';
+  if(s<60) return s+'s';
   if(s<3600) return Math.round(s/60)+' min';
   const h=Math.floor(s/3600),m=Math.round((s%3600)/60);
   return h+'h'+(m?m+'min':'');
@@ -289,8 +265,7 @@ function flipTo(text,animate){
     activeSlot.classList.remove('active','flip-out','flip-in');
     inactiveSlot.classList.remove('flip-out','flip-in');
     inactiveSlot.classList.add('active');
-    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot];
-    return;
+    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot]; return;
   }
   flipLocked=true;
   activeSlot.classList.remove('active'); activeSlot.classList.add('flip-out');
@@ -298,8 +273,7 @@ function flipTo(text,animate){
   setTimeout(()=>{
     activeSlot.classList.remove('flip-out');
     inactiveSlot.classList.remove('flip-in'); inactiveSlot.classList.add('active');
-    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot];
-    flipLocked=false;
+    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot]; flipLocked=false;
   },320);
 }
 function rotationTick(){
@@ -323,7 +297,6 @@ function showInfoBox(seconds){
   setTimeout(()=>{rotationLocked=false;},6000);
 }
 
-/* ===== STYLES ===== */
 function loadFont(fontName){
   if(fontName==='Rajdhani') return;
   const q=GOOGLE_FONTS[fontName]; if(!q) return;
@@ -338,46 +311,27 @@ function applyGlobalFont(){
   loadFont(f);
   document.documentElement.style.setProperty('--widget-font',`'${f}', 'Rajdhani', sans-serif`);
 }
-function applyAlertStyle(){
-  elAlertName.dataset.eventSize=safeInt(cfg('alertFontSize'),DEFAULT.alertFontSize)+'px';
-}
-function applyTimerSize(){
-  elTimer.style.fontSize=safeInt(cfg('timerFontSize'),DEFAULT.timerFontSize)+'px';
-}
+function applyAlertStyle(){ elAlertName.dataset.eventSize=safeInt(cfg('alertFontSize'),DEFAULT.alertFontSize)+'px'; }
+function applyTimerSize()  { elTimer.style.fontSize=safeInt(cfg('timerFontSize'),DEFAULT.timerFontSize)+'px'; }
 function applyColors(){
   const root=document.documentElement;
   const boxBg =hexToRgba(cfg('boxBgColor'), safeInt(cfg('boxBgOpacity'), DEFAULT.boxBgOpacity));
   const goalBg=hexToRgba(cfg('goalBgColor'),safeInt(cfg('goalBgOpacity'),DEFAULT.goalBgOpacity));
   const glow  =hexToRgba(cfg('glowColor'),  safeInt(cfg('glowOpacity'),  DEFAULT.glowOpacity));
-  const map={
-    '--widget-width':cfg('widgetWidth'),
-    '--accent':      cfg('accent'),
-    '--text-accent': cfg('accent'),
-    '--timer-bg':    cfg('timerBg'),
-    '--timer-text':  cfg('timerText'),
-    '--goal-bg':     goalBg,
-    '--goal-text':   cfg('goalText'),
-    '--info-bg':     cfg('infoBg'),
-    '--info-text':   cfg('infoText'),
-    '--glow':        glow,
-  };
+  const map={'--widget-width':cfg('widgetWidth'),'--accent':cfg('accent'),'--text-accent':cfg('accent'),
+    '--timer-bg':cfg('timerBg'),'--timer-text':cfg('timerText'),
+    '--goal-bg':goalBg,'--goal-text':cfg('goalText'),
+    '--info-bg':cfg('infoBg'),'--info-text':cfg('infoText'),'--glow':glow};
   for(const[k,v]of Object.entries(map)) if(v) root.style.setProperty(k,v);
   elAlertBox.style.background=boxBg;
 }
 
-/* =============================================
-   TIMER
-   ============================================= */
 function startTimer(){
   if(timerInterval) clearInterval(timerInterval);
   running=true; elTimer.style.color='';
   timerInterval=setInterval(()=>{
-    if(timeLeft>0){
-      timeLeft--; updateTimerDisplay(); storeSave();
-    } else {
-      running=false; clearInterval(timerInterval); timerInterval=null;
-      elTimer.style.color='#ffffff99'; storeSave();
-    }
+    if(timeLeft>0){ timeLeft--; updateTimerDisplay(); storeSave(); }
+    else { running=false; clearInterval(timerInterval); timerInterval=null; elTimer.style.color='#ffffff99'; storeSave(); }
   },1000);
 }
 function pauseTimer(){
@@ -400,30 +354,16 @@ function removeTime(seconds){
   elTimer.classList.remove('pulse'); void elTimer.offsetWidth; elTimer.classList.add('pulse');
   setTimeout(()=>elTimer.classList.remove('pulse'),450);
   updateTimerDisplay(); storeSave();
-  if(timeLeft<=0){
-    running=false;
-    if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
-    elTimer.style.color='#ffffff99';
-  }
+  if(timeLeft<=0){running=false;if(timerInterval){clearInterval(timerInterval);timerInterval=null;}elTimer.style.color='#ffffff99';}
 }
-function addGoal(amount){
-  goalCurrent=Math.min(goalTarget,goalCurrent+amount);
-  elGoalCur.textContent=goalCurrent;
-}
+function addGoal(amount){ goalCurrent=Math.min(goalTarget,goalCurrent+amount); elGoalCur.textContent=goalCurrent; }
 function updateTimerDisplay(){
   if(timeLeft<0){elTimer.textContent='--:--:--';return;}
   const tl=Math.max(0,timeLeft);
-  elTimer.textContent=
-    String(Math.floor(tl/3600)).padStart(2,'0')+':'+
-    String(Math.floor((tl%3600)/60)).padStart(2,'0')+':'+
-    String(tl%60).padStart(2,'0');
+  elTimer.textContent=String(Math.floor(tl/3600)).padStart(2,'0')+':'+String(Math.floor((tl%3600)/60)).padStart(2,'0')+':'+String(tl%60).padStart(2,'0');
 }
-function goalUnitLabel(){
-  const t=cfg('goalType');
-  return t==='dono'?'€':t==='bits'?'bits':'subs';
-}
+function goalUnitLabel(){ const t=cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
-/* ===== ALERT ===== */
 const TYPE_LABELS={dono:'Nouveau Don',bits:'Cheers',follow:'Nouveau Follow'};
 function showAlert(type,name,bottomExtra,topTier,flash=true){
   elAlertName.classList.remove('idle');
@@ -431,36 +371,29 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
   if(topTier){
     const base=type==='sub'?'Nouveau Sub':type==='resub'?'Réabonnement':type==='gift'?'Gift Sub':(TYPE_LABELS[type]||type);
     elAlertType.textContent=base+' '+topTier;
-  } else {
-    elAlertType.textContent=TYPE_LABELS[type]||type;
-  }
+  } else { elAlertType.textContent=TYPE_LABELS[type]||type; }
   elAlertName.textContent=bottomExtra?name+' - '+bottomExtra:name;
   if(flash){elAlertBox.classList.remove('flash');void elAlertBox.offsetWidth;elAlertBox.classList.add('flash');}
 }
 
 /* =============================================
-   INIT
-   Appelé à chaque onWidgetLoad.
-   Pas de guard _initDone : SE peut appeler
-   onWidgetLoad plusieurs fois (save paramètres).
-
-   Décision :
-   1. Stoppe le timer en cours
-   2. Calcule safeCurrent depuis fieldData
-   3. Lit le store
-   4. Si reload récent ET initialTime inchangé
-      → restaure
-   5. Sinon (1er lancement OU initialTime changé
-      OU store expiré) → repart de safeCurrent
+   INIT v3.1
+   CHANGEMENT CLE :
+   On affiche safeCurrent IMMEDIATEMENT dans le
+   timer (avant storeLoad) pour ne jamais rester
+   bloque a --:--:--.
+   storeLoad peut ensuite corriger si c'est
+   un vrai rechargement SE.
    ============================================= */
 function init(fd) {
+  console.log('[SA] init() appele, fieldData=', fd);
   if (fd) window.fieldData = fd;
 
-  // Stoppe timer en cours pour éviter double tick
+  // Stoppe timer en cours
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
 
-  // Applique styles / config
+  // Styles
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   elGoalUnit.textContent = goalUnitLabel();
@@ -469,20 +402,45 @@ function init(fd) {
   setIdle();
   startRotation();
 
-  // Calcule le temps initial demandé
-  const rawInitial   = cfg('initialTime');          // valeur fieldData ou DEFAULT
-  const parsed       = parseTimeField(rawInitial);  // 0 si vide/invalide
-  safeCurrent        = parsed > 0 ? parsed : 3600;  // toujours >= 1s
+  // Calcule le temps initial
+  const rawInitial = cfg('initialTime');
+  const parsed     = parseTimeField(rawInitial);
+  safeCurrent      = parsed > 0 ? parsed : 3600;
+
+  console.log('[SA] rawInitial=', rawInitial, 'parsed=', parsed, 'safeCurrent=', safeCurrent);
+
+  // === AFFICHE IMMEDIATEMENT safeCurrent ===
+  // Ne reste plus jamais a --:--:--
+  timeLeft = safeCurrent;
+  elTimer.style.color = '';
+  updateTimerDisplay();
+
+  // Demarre le timer de suite si autoStart
+  // storeLoad va corriger si c'est un rechargement
+  if (cfgBool('autoStart')) {
+    startTimer();
+  } else {
+    storeSave();
+  }
 
   const now = Date.now();
 
+  // Lecture store : si rechargement SE recent ET meme initialTime
+  // ET on avait un temps sauvegarde -> on le restaure
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
+    console.log('[SA] store: savedTime=',savedTime,'savedRun=',savedRun,'savedInit=',savedInit,'savedStamp=',savedStamp,'now=',now,'delta=',savedStamp?now-savedStamp:'N/A');
+
     const isReload    = savedStamp !== null && (now - savedStamp) < RELOAD_WINDOW_MS;
     const hasSave     = savedTime !== null && savedTime >= 0;
     const initChanged = savedInit !== null && savedInit !== safeCurrent;
 
+    console.log('[SA] isReload=',isReload,'hasSave=',hasSave,'initChanged=',initChanged);
+
     if (isReload && hasSave && !initChanged) {
-      // Rechargement SE (style, couleur...) : restaure le timer
+      // Rechargement SE : restaure le temps exact
+      console.log('[SA] -> RESTORE savedTime=', savedTime);
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      running = false;
       timeLeft = savedTime;
       updateTimerDisplay();
       if (savedTime > 0 && savedRun === 1) {
@@ -492,35 +450,28 @@ function init(fd) {
         storeSave();
       }
     } else {
-      // 1er lancement OU initialTime modifié OU store expiré
-      timeLeft = safeCurrent;
-      elTimer.style.color = '';
-      updateTimerDisplay();
-      if (cfgBool('autoStart') && timeLeft > 0) {
-        startTimer();
-      } else {
-        storeSave();
-      }
+      // Pas de rechargement ou initialTime change : on garde safeCurrent deja affiche
+      console.log('[SA] -> FRESH START avec safeCurrent=', safeCurrent);
     }
   });
 }
 
-// SE déclenche onWidgetLoad à chaque save de paramètres
 window.addEventListener('onWidgetLoad', function(obj) {
   const fd = obj && obj.detail && obj.detail.fieldData ? obj.detail.fieldData : undefined;
+  console.log('[SA] onWidgetLoad, fd=', fd);
   init(fd);
 });
 
-// Fallback éditeur hors ligne (onWidgetLoad ne se déclenche pas)
 let _fallbackDone = false;
 setTimeout(() => {
-  if (!_fallbackDone) { _fallbackDone = true; init(undefined); }
+  if (!_fallbackDone) {
+    console.log('[SA] fallback timeout, onWidgetLoad jamais recu');
+    _fallbackDone = true;
+    init(undefined);
+  }
 }, 1500);
 window.addEventListener('onWidgetLoad', () => { _fallbackDone = true; });
 
-/* =============================================
-   CHAT COMMANDS & EVENTS
-   ============================================= */
 let _lastEventId = null;
 
 window.addEventListener('onEventReceived', function(obj) {
@@ -547,10 +498,10 @@ window.addEventListener('onEventReceived', function(obj) {
       addtime:    String(cfg('cmdAddTime')   ||DEFAULT.cmdAddTime).toLowerCase(),
       removetime: String(cfg('cmdRemoveTime')||DEFAULT.cmdRemoveTime).toLowerCase(),
     };
-    if (cmd===al.start)  { if(!running&&timeLeft>0){startTimer();storeSave();} return; }
-    if (cmd===al.stop)   { pauseTimer(); return; }
-    if (cmd===al.reset)  { pauseTimer(); timeLeft=safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
-    if (cmd===al.settime&&arg)  { const s=parseTimeField(arg); if(s>0){timeLeft=s;updateTimerDisplay();storeSave();if(!running)startTimer();} return; }
+    if (cmd===al.start)      { if(!running&&timeLeft>0){startTimer();storeSave();} return; }
+    if (cmd===al.stop)       { pauseTimer(); return; }
+    if (cmd===al.reset)      { pauseTimer(); timeLeft=safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
+    if (cmd===al.settime&&arg)    { const s=parseTimeField(arg); if(s>0){timeLeft=s;updateTimerDisplay();storeSave();if(!running)startTimer();} return; }
     if (cmd===al.addtime&&arg)    { const s=parseTimeField(arg); if(s>0) addTime(s);    return; }
     if (cmd===al.removetime&&arg) { const s=parseTimeField(arg); if(s>0) removeTime(s); return; }
     return;
