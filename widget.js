@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.41
+   SUBATHON WIDGET v2.42
    ============================================= */
 
 const DEFAULT = {
@@ -91,11 +91,6 @@ function hexToRgba(hex, opacity) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/**
- * Parse "HH:MM:SS" → secondes totales.
- * Accepte aussi "MM:SS" et un nombre brut.
- * Retourne 0 si vide ou invalide.
- */
 function parseTimeField(val) {
   const s = String(val || '').trim();
   if (!s) return 0;
@@ -142,6 +137,46 @@ const elGoalBox   = document.getElementById('goalBox');
 const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
+
+/* =============================================
+   EVENT QUEUE
+   Chaque alerte attend que la précédente soit
+   terminée + ALERT_GAP ms avant de s'afficher.
+   Le temps est ajouté immédiatement à la file.
+   ============================================= */
+const ALERT_DISPLAY = 5000;  // durée affichage d'une alerte (ms)
+const ALERT_GAP     = 800;   // délai entre deux alertes (ms)
+
+const eventQueue  = [];
+let   queueBusy   = false;
+
+function enqueueEvent(payload) {
+  // Le temps est ajouté tout de suite, l'affichage est mis en file
+  if (payload.secsToAdd) addTime(payload.secsToAdd);
+  if (payload.goalAdd)   addGoalDirect(payload.goalAdd);
+  eventQueue.push(payload);
+  drainQueue();
+}
+
+function drainQueue() {
+  if (queueBusy || eventQueue.length === 0) return;
+  queueBusy = true;
+  const payload = eventQueue.shift();
+  _displayEvent(payload);
+  setTimeout(() => {
+    queueBusy = false;
+    drainQueue();
+  }, ALERT_DISPLAY + ALERT_GAP);
+}
+
+function _displayEvent({ type, name, bottomExtra, topTier, infoSecs }) {
+  showInfoBox(infoSecs || 0);
+  showAlert(type, name, bottomExtra, topTier, true);
+  lastEventState = { type, name, bottomExtra, topTier };
+  startIdleCycle();
+}
+
+/* ===== */
 
 function buildIdleText() {
   const parts = [];
@@ -379,11 +414,6 @@ function startTimer() {
   }, 1000);
 }
 
-/**
- * Ajoute du temps.
- * - lockOnZero : bloque si timer à 0
- * - maxTime    : plafonne le timer (00:00:00 = pas de limite)
- */
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
 
@@ -400,6 +430,11 @@ function addTime(seconds) {
   elTimer.classList.add('pulse');
   setTimeout(() => elTimer.classList.remove('pulse'), 450);
   updateTimerDisplay();
+}
+
+function addGoalDirect(amount) {
+  goalCurrent = Math.min(goalTarget, goalCurrent + amount);
+  elGoalCur.textContent = goalCurrent;
 }
 
 function updateTimerDisplay() {
@@ -441,11 +476,6 @@ function showAlert(type, name, bottomExtra, topTier, flash = true) {
   }
 }
 
-function addGoal(amount) {
-  goalCurrent = Math.min(goalTarget, goalCurrent + amount);
-  elGoalCur.textContent = goalCurrent;
-}
-
 /* ===== EVENTS ===== */
 let _lastEventId = null;
 
@@ -472,6 +502,7 @@ window.addEventListener('onEventReceived', function(obj) {
     let secsToAdd   = 0;
     let type        = 'sub';
     let bottomExtra = totalMonths >= 1 ? 'x' + totalMonths : null;
+    let goalAdd     = null;
 
     if (isGift) {
       if (!cfg('giftEnabled')) return;
@@ -481,22 +512,18 @@ window.addEventListener('onEventReceived', function(obj) {
       const key   = t >= 3000 ? 'timePerGiftT3' : t >= 2000 ? 'timePerGiftT2' : 'timePerGiftT1';
       secsToAdd   = count * safeInt(cfg(key), DEFAULT[key]);
       bottomExtra = 'x' + count;
-      if (cfg('goalType') === 'sub') addGoal(count);
+      if (cfg('goalType') === 'sub') goalAdd = count;
     } else if (isResub) {
       if (!cfg('resubEnabled')) return;
       type      = 'resub';
       secsToAdd = tierSeconds('timePerResub', tierRaw);
-      if (cfg('goalType') === 'sub') addGoal(1);
+      if (cfg('goalType') === 'sub') goalAdd = 1;
     } else {
       secsToAdd = tierSeconds('timePerSub', tierRaw);
-      if (cfg('goalType') === 'sub') addGoal(1);
+      if (cfg('goalType') === 'sub') goalAdd = 1;
     }
 
-    addTime(secsToAdd);
-    showInfoBox(secsToAdd);
-    showAlert(type, uname, bottomExtra, tier, true);
-    lastEventState = { type, name: uname, bottomExtra, topTier: tier };
-    startIdleCycle();
+    enqueueEvent({ type, name: uname, bottomExtra, topTier: tier, secsToAdd, goalAdd, infoSecs: secsToAdd });
   }
 
   if (listener === 'tip-latest') {
@@ -506,12 +533,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const secsEach  = safeInt(cfg('timePerDono'), DEFAULT.timePerDono);
     const secsToAdd = Math.floor(amount / perUnit) * secsEach;
     const uname     = data.username || 'Anonyme';
-    if (secsToAdd > 0) addTime(secsToAdd);
-    if (cfg('goalType') === 'dono') addGoal(amount);
-    showInfoBox(secsToAdd || 0);
-    showAlert('dono', uname, amount + '€', null, true);
-    lastEventState = { type: 'dono', name: uname, bottomExtra: amount + '€', topTier: null };
-    startIdleCycle();
+    const goalAdd   = cfg('goalType') === 'dono' ? amount : null;
+    enqueueEvent({ type: 'dono', name: uname, bottomExtra: amount + '€', topTier: null, secsToAdd, goalAdd, infoSecs: secsToAdd });
   }
 
   if (listener === 'cheer-latest') {
@@ -521,23 +544,15 @@ window.addEventListener('onEventReceived', function(obj) {
     const secsEach  = safeInt(cfg('timePerBits'), DEFAULT.timePerBits);
     const secsToAdd = Math.floor(bits / perUnit) * secsEach;
     const uname     = data.displayName || data.name || 'Anonyme';
-    if (secsToAdd > 0) addTime(secsToAdd);
-    if (cfg('goalType') === 'bits') addGoal(bits);
-    showInfoBox(secsToAdd || 0);
-    showAlert('bits', uname, bits + ' bits', null, true);
-    lastEventState = { type: 'bits', name: uname, bottomExtra: bits + ' bits', topTier: null };
-    startIdleCycle();
+    const goalAdd   = cfg('goalType') === 'bits' ? bits : null;
+    enqueueEvent({ type: 'bits', name: uname, bottomExtra: bits + ' bits', topTier: null, secsToAdd, goalAdd, infoSecs: secsToAdd });
   }
 
   if (listener === 'follower-latest') {
     if (!cfg('followEnabled')) return;
     const secsToAdd = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
     const uname     = data.displayName || data.name || 'Anonyme';
-    addTime(secsToAdd);
-    showInfoBox(secsToAdd);
-    showAlert('follow', uname, null, null, true);
-    lastEventState = { type: 'follow', name: uname, bottomExtra: null, topTier: null };
-    startIdleCycle();
+    enqueueEvent({ type: 'follow', name: uname, bottomExtra: null, topTier: null, secsToAdd, goalAdd: null, infoSecs: secsToAdd });
   }
 });
 
