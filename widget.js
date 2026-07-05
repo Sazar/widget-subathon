@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.45
+   SUBATHON WIDGET v2.5
    ============================================= */
 
 const DEFAULT = {
@@ -70,6 +70,38 @@ const GOOGLE_FONTS = {
   'Orbitron':         'Orbitron:wght@400;700;800',
   'Play':             'Play:wght@400;700',
 };
+
+/* =============================================
+   PERSISTANCE DU TIMER (SE KV store)
+   SE fournit window.SE_API pour lire/écrire.
+   On sauvegarde timeLeft + running toutes les
+   5 secondes ET à chaque modification.
+   ============================================= */
+const STORE_KEY_TIME    = 'subathon_timeLeft';
+const STORE_KEY_RUNNING = 'subathon_running';
+const SAVE_INTERVAL_MS  = 5000;
+
+function storeSave() {
+  if (typeof SE_API !== 'undefined') {
+    SE_API.store.set(STORE_KEY_TIME,    timeLeft);
+    SE_API.store.set(STORE_KEY_RUNNING, running ? 1 : 0);
+  }
+}
+
+function storeLoad(callback) {
+  if (typeof SE_API !== 'undefined') {
+    SE_API.store.get(STORE_KEY_TIME, function(savedTime) {
+      SE_API.store.get(STORE_KEY_RUNNING, function(savedRunning) {
+        callback(
+          (savedTime    !== null && savedTime    !== undefined) ? parseInt(savedTime, 10)    : null,
+          (savedRunning !== null && savedRunning !== undefined) ? parseInt(savedRunning, 10) : null
+        );
+      });
+    });
+  } else {
+    callback(null, null);
+  }
+}
 
 let _initialized = false;
 
@@ -346,6 +378,7 @@ function applyTimerSize() {
   elTimer.style.fontSize = size + 'px';
 }
 
+/* ===== INIT ===== */
 function init() {
   if (_initialized) return;
   _initialized = true;
@@ -355,26 +388,44 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft    = parseTimeField(cfg('initialTime')) || 3600;
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
-
   elGoalUnit.textContent  = goalUnitLabel();
   elGoalTgt.textContent   = goalTarget;
   elGoalCur.textContent   = 0;
   elGoalBox.style.display = cfg('goalEnabled') ? '' : 'none';
 
   setIdle();
-  updateTimerDisplay();
 
-  // Démarrage automatique ou non selon l'option
-  if (cfg('autoStart')) {
-    startTimer();
-  } else {
-    // Timer en attente : affiche le temps mais ne décompte pas
-    running = false;
-    elTimer.style.color = '#ffffff99';
-  }
+  // Charge le timer sauvegardé, sinon part du temps initial
+  storeLoad(function(savedTime, savedRunning) {
+    const fallback = parseTimeField(cfg('initialTime')) || 3600;
+
+    if (savedTime !== null && !isNaN(savedTime) && savedTime > 0) {
+      // Timer existant → restaurer
+      timeLeft = savedTime;
+      updateTimerDisplay();
+      if (savedRunning === 1) {
+        startTimer();
+      } else {
+        running = false;
+        elTimer.style.color = '#ffffff99';
+      }
+    } else {
+      // Aucun timer sauvegardé → démarrage normal
+      timeLeft = fallback;
+      updateTimerDisplay();
+      if (cfg('autoStart')) {
+        startTimer();
+      } else {
+        running = false;
+        elTimer.style.color = '#ffffff99';
+      }
+    }
+
+    // Sauvegarde automatique toutes les 5s
+    setInterval(storeSave, SAVE_INTERVAL_MS);
+  });
 
   startRotation();
 }
@@ -422,6 +473,7 @@ function startTimer() {
       clearInterval(timerInterval);
       timerInterval = null;
       elTimer.style.color = '#ffffff99';
+      storeSave();
     }
   }, 1000);
 }
@@ -432,6 +484,7 @@ function pauseTimer() {
     timerInterval = null;
   }
   running = false;
+  storeSave();
 }
 
 function addTime(seconds) {
@@ -445,6 +498,7 @@ function addTime(seconds) {
   elTimer.classList.add('pulse');
   setTimeout(() => elTimer.classList.remove('pulse'), 450);
   updateTimerDisplay();
+  storeSave();
 }
 
 function removeTime(seconds) {
@@ -454,6 +508,7 @@ function removeTime(seconds) {
   elTimer.classList.add('pulse');
   setTimeout(() => elTimer.classList.remove('pulse'), 450);
   updateTimerDisplay();
+  storeSave();
   if (timeLeft <= 0) {
     running = false;
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
@@ -534,6 +589,7 @@ window.addEventListener('onEventReceived', function(obj) {
     };
     if (cmd === aliases.start) {
       if (!running && timeLeft > 0) startTimer();
+      storeSave();
       return;
     }
     if (cmd === aliases.stop) { pauseTimer(); return; }
@@ -541,12 +597,13 @@ window.addEventListener('onEventReceived', function(obj) {
       pauseTimer();
       timeLeft = parseTimeField(cfg('initialTime')) || 3600;
       updateTimerDisplay();
+      storeSave();
       startTimer();
       return;
     }
     if (cmd === aliases.settime && arg) {
       const secs = parseTimeField(arg);
-      if (secs > 0) { timeLeft = secs; updateTimerDisplay(); if (!running) startTimer(); }
+      if (secs > 0) { timeLeft = secs; updateTimerDisplay(); storeSave(); if (!running) startTimer(); }
       return;
     }
     if (cmd === aliases.addtime    && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
