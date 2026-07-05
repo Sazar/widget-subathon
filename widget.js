@@ -1,9 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v3.2
-   - Timer garde son temps si on change des
-     paramètres autres que Temps initial
+   SUBATHON WIDGET v3.3
+   - autoStart fonctionne dans tous les cas
+   - Timer garde son temps sur changement de params
    - Reset uniquement si initialTime change
-   - Fenêtre de rechargement étendue à 5 minutes
+   - Fenêtre de rechargement 5 minutes
    ============================================= */
 
 const DEFAULT = {
@@ -380,13 +380,24 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.2
-   Logique de restauration :
-   1. On affiche immédiatement safeCurrent (initialTime)
-   2. storeLoad vérifie :
-      - Timestamp < 5 min  => rechargement/param change
-      - initialTime INCHANGE => on restaure le temps en cours
-      - initialTime CHANGE   => on repart sur le nouveau temps
+   INIT v3.3
+
+   Logique de décision :
+
+   A) Store vide (null) OU stamp > 5min
+      → Premier vrai lancement
+      → autoStart ? startTimer() : storeSave()
+
+   B) Store récent (< 5min) ET initialTime INCHANGÉ
+      → Rechargement ou changement de param autre que temps
+      → Restaure savedTime
+      → savedRun=1 ? startTimer() : pause
+      → Si savedRun est null (jamais sauvegardé) → autoStart
+
+   C) Store récent (< 5min) ET initialTime CHANGÉ
+      → Nouveau temps initial voulu
+      → timeLeft = safeCurrent
+      → autoStart ? startTimer() : storeSave()
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -406,7 +417,7 @@ function init(fd) {
   const parsed     = parseTimeField(rawInitial);
   safeCurrent      = parsed > 0 ? parsed : 3600;
 
-  // Affiche immédiatement safeCurrent — ne reste jamais à --:--:--
+  // Affiche immédiatement le temps initial — jamais --:--:--
   timeLeft = safeCurrent;
   elTimer.style.color = '';
   updateTimerDisplay();
@@ -414,36 +425,56 @@ function init(fd) {
   const now = Date.now();
 
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
-    const elapsed     = savedStamp !== null ? now - savedStamp : Infinity;
-    const isRecent    = elapsed < RELOAD_WINDOW_MS;   // < 5 min
-    const hasSave     = savedTime !== null && savedTime >= 0;
-    const initChanged = savedInit !== null && savedInit !== safeCurrent;
 
-    if (isRecent && hasSave && !initChanged) {
-      // --- Rechargement OU changement de paramètres (sauf initialTime)
-      // On restaure le temps exact en cours
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      running = false;
+    const elapsed      = (savedStamp !== null) ? (now - savedStamp) : Infinity;
+    const isRecent     = elapsed < RELOAD_WINDOW_MS;          // < 5 min
+    const hasSave      = savedTime !== null && savedTime >= 0; // store non vide
+    const initChanged  = hasSave && savedInit !== null && savedInit !== safeCurrent;
+    const wasRunning   = savedRun === 1;                       // était en cours
+
+    if (!isRecent || !hasSave) {
+      // --- CAS A : premier lancement ou store expiré
+      timeLeft = safeCurrent;
+      updateTimerDisplay();
+      if (cfgBool('autoStart') && safeCurrent > 0) {
+        startTimer();
+      } else {
+        storeSave();
+      }
+
+    } else if (initChanged) {
+      // --- CAS C : initialTime a changé → nouveau départ
+      timeLeft = safeCurrent;
+      updateTimerDisplay();
+      if (cfgBool('autoStart') && safeCurrent > 0) {
+        startTimer();
+      } else {
+        storeSave();
+      }
+
+    } else {
+      // --- CAS B : rechargement ou changement de paramètre, initialTime identique
+      // On restaure le temps exact
       timeLeft = savedTime;
       updateTimerDisplay();
-      if (savedTime > 0 && savedRun === 1) {
-        startTimer();
-      } else {
-        if (savedTime <= 0) elTimer.style.color = '#ffffff99';
+
+      if (savedTime <= 0) {
+        // Timer fini, on ne redémarre pas
+        elTimer.style.color = '#ffffff99';
         storeSave();
-      }
-    } else if (isRecent && hasSave && initChanged) {
-      // --- initialTime a changé : on repart sur le nouveau temps
-      if (cfgBool('autoStart') && safeCurrent > 0) {
+      } else if (wasRunning) {
+        // Était en train de tourner → on reprend
         startTimer();
+      } else if (savedRun === null) {
+        // Store vide pour savedRun = jamais explicitement sauvegardé
+        // Comportement autoStart
+        if (cfgBool('autoStart')) {
+          startTimer();
+        } else {
+          storeSave();
+        }
       } else {
-        storeSave();
-      }
-    } else {
-      // --- Premier chargement ou store vide
-      if (cfgBool('autoStart') && safeCurrent > 0) {
-        startTimer();
-      } else {
+        // savedRun === 0 : était explicitement en pause
         storeSave();
       }
     }
