@@ -1,9 +1,10 @@
 /* =============================================
-   SUBATHON WIDGET v2.39
+   SUBATHON WIDGET v2.40
    ============================================= */
 
 const DEFAULT = {
   initialTime:      '01:00:00',
+  maxTime:          '',
   lockOnZero:       false,
   timePerSubT1:     300,
   timePerSubT2:     600,
@@ -93,18 +94,17 @@ function hexToRgba(hex, opacity) {
 /**
  * Parse "HH:MM:SS" → secondes totales.
  * Accepte aussi "MM:SS" et un nombre brut (rétrocompat).
+ * Retourne null si la valeur est vide ou invalide.
  */
-function parseInitialTime(val) {
+function parseTimeField(val) {
   const s = String(val || '').trim();
-  // HH:MM:SS
+  if (!s) return null;
   const full = s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);
   if (full) return parseInt(full[1], 10) * 3600 + parseInt(full[2], 10) * 60 + parseInt(full[3], 10);
-  // MM:SS
   const short = s.match(/^(\d+):(\d{1,2})$/);
   if (short) return parseInt(short[1], 10) * 60 + parseInt(short[2], 10);
-  // Nombre brut
   const n = parseInt(s, 10);
-  return isNaN(n) ? 3600 : n;
+  return isNaN(n) ? null : n;
 }
 
 function tierSeconds(prefix, tierRaw) {
@@ -319,7 +319,7 @@ function init() {
   applyAlertStyle();
   applyTimerSize();
 
-  timeLeft    = parseInitialTime(cfg('initialTime'));
+  timeLeft    = parseTimeField(cfg('initialTime')) ?? 3600;
   goalTarget  = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   goalCurrent = 0;
 
@@ -380,13 +380,20 @@ function startTimer() {
 }
 
 /**
- * Tente d'ajouter du temps.
- * Si lockOnZero est activé et que le timer est à 0, on ignore silencieusement.
+ * Ajoute du temps en respectant le plafond maxTime si défini.
+ * Si lockOnZero est activé et que le timer est à 0, on ignore.
  */
 function addTime(seconds) {
   if (cfg('lockOnZero') && timeLeft <= 0) return;
 
   timeLeft += seconds;
+
+  // Appliquer le plafond
+  const maxSecs = parseTimeField(cfg('maxTime'));
+  if (maxSecs !== null && maxSecs > 0 && timeLeft > maxSecs) {
+    timeLeft = maxSecs;
+  }
+
   if (!running && timeLeft > 0) startTimer();
   elTimer.classList.remove('pulse');
   void elTimer.offsetWidth;

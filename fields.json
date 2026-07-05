@@ -4,6 +4,11 @@
     "label": "⏱ Temps initial (HH:MM:SS)",
     "value": "01:00:00"
   },
+  "maxTime": {
+    "type": "text",
+    "label": "⏳ Temps maximum (HH:MM:SS) — laisser vide pour désactiver",
+    "value": ""
+  },
   "lockOnZero": {
     "type": "checkbox",
     "label": "🔒 Bloquer l'ajout de temps si le timer est à 0",
