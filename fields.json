@@ -48,63 +48,27 @@
   "followEnabled":  { "type": "checkbox", "label": "✅ Activer : Follows",                "value": true },
   "timePerFollow":  { "type": "number",   "label": "⏱ Secondes / Follow",                "value": 15,   "step": 1, "min": 0 },
 
-  "goalEnabled": { "type": "checkbox", "label": "🎯 Afficher Goal Box", "value": true },
+  "goalEnabled": { "type": "checkbox", "label": "🎯 Afficher Goal Box (compteur coin)", "value": true },
   "goalType": {
-    "type": "dropdown", "label": "🎯 Type de goal",
+    "type": "dropdown", "label": "🎯 Type de goal (compteur coin)",
     "value": "sub",
     "options": { "sub": "Subs", "dono": "Dons (€)", "bits": "Bits" }
   },
-  "goalTarget": { "type": "number", "label": "🎯 Objectif cible", "value": 50, "step": 1, "min": 1 },
+  "goalTarget": { "type": "number", "label": "🎯 Objectif cible (compteur coin)", "value": 50, "step": 1, "min": 1 },
 
-  "cmdEnabled": {
-    "type": "checkbox",
-    "label": "💬 Activer les commandes chat",
-    "value": true
-  },
-  "cmdPrefix": {
-    "type": "text",
-    "label": "💬 Préfixe commandes",
-    "value": "!"
-  },
-  "cmdStart": {
-    "type": "text",
-    "label": "💬 Alias Démarrer le timer",
-    "value": "start"
-  },
-  "cmdStop": {
-    "type": "text",
-    "label": "💬 Alias Mettre en pause",
-    "value": "stop"
-  },
-  "cmdReset": {
-    "type": "text",
-    "label": "💬 Alias Remettre à zéro",
-    "value": "reset"
-  },
-  "cmdSetTime": {
-    "type": "text",
-    "label": "💬 Alias Définir le temps (ex: !settime 01:30:00)",
-    "value": "settime"
-  },
-  "cmdAddTime": {
-    "type": "text",
-    "label": "💬 Alias Ajouter du temps (ex: !addtime 00:05:00 ou !addtime 300)",
-    "value": "addtime"
-  },
-  "cmdRemoveTime": {
-    "type": "text",
-    "label": "💬 Alias Retirer du temps (ex: !removetime 00:05:00 ou !removetime 300)",
-    "value": "removetime"
-  },
-  "cmdModOnly": {
-    "type": "checkbox",
-    "label": "🛡️ Commandes réservées aux mods & streamer uniquement",
-    "value": true
-  },
+  "cmdEnabled": { "type": "checkbox", "label": "💬 Activer les commandes chat", "value": true },
+  "cmdPrefix":   { "type": "text",     "label": "💬 Préfixe commandes",          "value": "!" },
+  "cmdStart":       { "type": "text", "label": "💬 Alias Démarrer le timer",                        "value": "start" },
+  "cmdStop":        { "type": "text", "label": "💬 Alias Mettre en pause",                          "value": "stop" },
+  "cmdReset":       { "type": "text", "label": "💬 Alias Remettre à zéro",                          "value": "reset" },
+  "cmdSetTime":     { "type": "text", "label": "💬 Alias Définir le temps (ex: !settime 01:30:00)", "value": "settime" },
+  "cmdAddTime":     { "type": "text", "label": "💬 Alias Ajouter du temps",                         "value": "addtime" },
+  "cmdRemoveTime":  { "type": "text", "label": "💬 Alias Retirer du temps",                         "value": "removetime" },
+  "cmdModOnly":     { "type": "checkbox", "label": "🛡️ Commandes réservées aux mods & streamer",    "value": true },
 
   "widgetFont": {
     "type": "dropdown",
-    "label": "🔤 Police globale (toutes les box)",
+    "label": "🔤 Police globale",
     "value": "Rajdhani",
     "options": {
       "Rajdhani":         "Rajdhani (défaut)",
@@ -138,6 +102,51 @@
 
   "infoBg":        { "type": "color",  "label": "🎨 Info Box — fond",              "value": "#e84118" },
   "infoText":      { "type": "color",  "label": "🎨 Info Box — texte",             "value": "#ffffff" },
-  "glowColor":     { "type": "color",  "label": "🎨 Info Box — couleur glow",     "value": "#e84118" },
-  "glowOpacity":   { "type": "slider", "label": "🎨 Info Box — intensité glow",  "value": 45, "min": 0, "max": 100, "steps": 1 }
+  "glowColor":     { "type": "color",  "label": "🎨 Glow — couleur",              "value": "#e84118" },
+  "glowOpacity":   { "type": "slider", "label": "🎨 Glow — intensité",            "value": 45, "min": 0, "max": 100, "steps": 1 },
+
+  "gbar1Enabled": { "type": "checkbox", "label": "📊 Barre 1 — Activer",  "value": false },
+  "gbar1Label":   { "type": "text",     "label": "📊 Barre 1 — Texte",    "value": "Objectif subs" },
+  "gbar1Type": {
+    "type": "dropdown", "label": "📊 Barre 1 — Type",
+    "value": "sub",
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+  },
+  "gbar1Target": { "type": "number", "label": "📊 Barre 1 — Objectif", "value": 100, "step": 1, "min": 1 },
+
+  "gbar2Enabled": { "type": "checkbox", "label": "📊 Barre 2 — Activer",  "value": false },
+  "gbar2Label":   { "type": "text",     "label": "📊 Barre 2 — Texte",    "value": "Objectif tips" },
+  "gbar2Type": {
+    "type": "dropdown", "label": "📊 Barre 2 — Type",
+    "value": "dono",
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+  },
+  "gbar2Target": { "type": "number", "label": "📊 Barre 2 — Objectif", "value": 500, "step": 1, "min": 1 },
+
+  "gbar3Enabled": { "type": "checkbox", "label": "📊 Barre 3 — Activer",  "value": false },
+  "gbar3Label":   { "type": "text",     "label": "📊 Barre 3 — Texte",    "value": "Objectif bits" },
+  "gbar3Type": {
+    "type": "dropdown", "label": "📊 Barre 3 — Type",
+    "value": "bits",
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+  },
+  "gbar3Target": { "type": "number", "label": "📊 Barre 3 — Objectif", "value": 10000, "step": 1, "min": 1 },
+
+  "gbar4Enabled": { "type": "checkbox", "label": "📊 Barre 4 — Activer",  "value": false },
+  "gbar4Label":   { "type": "text",     "label": "📊 Barre 4 — Texte",    "value": "Objectif 4" },
+  "gbar4Type": {
+    "type": "dropdown", "label": "📊 Barre 4 — Type",
+    "value": "sub",
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+  },
+  "gbar4Target": { "type": "number", "label": "📊 Barre 4 — Objectif", "value": 200, "step": 1, "min": 1 },
+
+  "gbar5Enabled": { "type": "checkbox", "label": "📊 Barre 5 — Activer",  "value": false },
+  "gbar5Label":   { "type": "text",     "label": "📊 Barre 5 — Texte",    "value": "Objectif 5" },
+  "gbar5Type": {
+    "type": "dropdown", "label": "📊 Barre 5 — Type",
+    "value": "sub",
+    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits" }
+  },
+  "gbar5Target": { "type": "number", "label": "📊 Barre 5 — Objectif", "value": 300, "step": 1, "min": 1 }
 }

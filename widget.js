@@ -1,12 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v3.4
-   STRATEGIE AUTOSTART :
-   - autoStart démarre le timer IMMEDIATEMNT
-     sans attendre storeLoad
-   - storeLoad arrive ensuite et corrige :
-       * si rechargement récent + même initialTime
-         => remplace par le temps sauvegardé
-       * sinon => laisse tourner
+   SUBATHON WIDGET v3.5
+   - autoStart immédiat sans attendre storeLoad
+   - Timer garde son temps sur changement params
+   - 5 barres de goal configurables
    ============================================= */
 
 const DEFAULT = {
@@ -64,6 +60,12 @@ const DEFAULT = {
   infoText:       '#ffffff',
   glowColor:      '#e84118',
   glowOpacity:    45,
+  // Barres de goal
+  gbar1Enabled: false, gbar1Label: 'Objectif subs',  gbar1Type: 'sub',  gbar1Target: 100,
+  gbar2Enabled: false, gbar2Label: 'Objectif tips',  gbar2Type: 'dono', gbar2Target: 500,
+  gbar3Enabled: false, gbar3Label: 'Objectif bits',  gbar3Type: 'bits', gbar3Target: 10000,
+  gbar4Enabled: false, gbar4Label: 'Objectif 4',     gbar4Type: 'sub',  gbar4Target: 200,
+  gbar5Enabled: false, gbar5Label: 'Objectif 5',     gbar5Type: 'sub',  gbar5Target: 300,
 };
 
 const GOOGLE_FONTS = {
@@ -82,8 +84,10 @@ const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
+// Store keys pour les barres de goal
+const SK_GBAR  = (n) => 'sa_gbar' + n;
 
-const RELOAD_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const RELOAD_WINDOW_MS = 5 * 60 * 1000;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -110,6 +114,17 @@ function storeLoad(cb) {
       });
     });
   });
+}
+function storeLoadGbar(n, cb) {
+  if (typeof SE_API === 'undefined') { cb(null); return; }
+  SE_API.store.get(SK_GBAR(n), function(v) {
+    if (v === null || v === undefined || v === '') { cb(null); return; }
+    const f = parseFloat(v);
+    cb(isNaN(f) ? null : f);
+  });
+}
+function storeSaveGbar(n, val) {
+  storeSet(SK_GBAR(n), val);
 }
 
 function safeInt(val, fb) {
@@ -170,12 +185,16 @@ function tierLabel(tierRaw) {
   return 'T1';
 }
 
+// ===== ETAT =====
 let timeLeft      = -1;
 let running       = false;
 let goalCurrent   = 0;
 let goalTarget    = 1;
 let timerInterval = null;
 let safeCurrent   = 3600;
+
+// Barres de goal : current par index 1-5
+const gbarCurrent = { 1:0, 2:0, 3:0, 4:0, 5:0 };
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -189,6 +208,65 @@ const elGoalCur   = document.getElementById('goalCurrent');
 const elGoalTgt   = document.getElementById('goalTarget');
 const elGoalUnit  = document.getElementById('goalUnit');
 
+function gbarEl(n, id) { return document.getElementById('gbar'+n+'-'+id); }
+
+// ===== BARRES DE GOAL =====
+function initGbars() {
+  for (let n = 1; n <= 5; n++) {
+    const enabled = cfgBool('gbar'+n+'Enabled');
+    const wrap    = document.getElementById('gbar'+n);
+    if (!wrap) continue;
+    wrap.style.display = enabled ? '' : 'none';
+    if (!enabled) continue;
+
+    const label  = String(cfg('gbar'+n+'Label') || 'Objectif '+n);
+    const target = safeFloat(cfg('gbar'+n+'Target'), 100);
+
+    gbarEl(n,'label').textContent = label;
+    gbarEl(n,'tgt').textContent   = target;
+
+    // Restaure depuis le store
+    storeLoadGbar(n, function(saved) {
+      const cur = (saved !== null && saved >= 0) ? saved : 0;
+      gbarCurrent[n] = cur;
+      updateGbar(n);
+    });
+  }
+}
+
+function updateGbar(n) {
+  const wrap   = document.getElementById('gbar'+n);
+  if (!wrap || wrap.style.display === 'none') return;
+  const target = safeFloat(cfg('gbar'+n+'Target'), 100);
+  const cur    = gbarCurrent[n];
+  const pct    = Math.min(100, (cur / target) * 100);
+
+  gbarEl(n,'cur').textContent = Number.isInteger(cur) ? cur : cur.toFixed(2);
+  const fill = gbarEl(n,'fill');
+  fill.style.width = pct + '%';
+
+  if (pct >= 100) {
+    fill.classList.add('complete');
+  } else {
+    fill.classList.remove('complete');
+  }
+}
+
+function addToGbar(type, amount) {
+  for (let n = 1; n <= 5; n++) {
+    if (!cfgBool('gbar'+n+'Enabled')) continue;
+    const btype = String(cfg('gbar'+n+'Type') || 'sub');
+    if (btype !== type) continue;
+    gbarCurrent[n] = Math.min(
+      safeFloat(cfg('gbar'+n+'Target'), 100),
+      gbarCurrent[n] + amount
+    );
+    updateGbar(n);
+    storeSaveGbar(n, gbarCurrent[n]);
+  }
+}
+
+// ===== QUEUE =====
 const QUEUE_GAP  = 2000;
 const eventQueue = [];
 let   queueBusy  = false;
@@ -201,9 +279,10 @@ function drainQueue() {
   queueBusy = true;
   setTimeout(()=>{ fireEvent(eventQueue.shift()); lastFired=Date.now(); queueBusy=false; drainQueue(); },wait);
 }
-function fireEvent({type,name,bottomExtra,topTier,secsToAdd,goalAdd,infoSecs}) {
-  if (secsToAdd) addTime(secsToAdd);
-  if (goalAdd)   addGoal(goalAdd);
+function fireEvent({type,name,bottomExtra,topTier,secsToAdd,goalAdd,infoSecs,gbarType,gbarAmount}) {
+  if (secsToAdd)   addTime(secsToAdd);
+  if (goalAdd)     addGoal(goalAdd);
+  if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
   showInfoBox(infoSecs||0);
   showAlert(type,name,bottomExtra,topTier,true);
   lastEventState={type,name,bottomExtra,topTier};
@@ -382,24 +461,7 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.4
-
-   PRINCIPE : autoStart est traité AVANT storeLoad.
-   storeLoad arrive ensuite et corrige si nécessaire.
-
-   ETAPE 1 - immédiat :
-     - Affiche initialTime
-     - Si autoStart => startTimer() tout de suite
-     - Sinon => pause
-
-   ETAPE 2 - storeLoad (async, ~100-500ms) :
-     A) Store vide ou trop vieux  => rien à corriger
-     B) Rechargement récent, même initialTime
-        => remplace timeLeft par savedTime
-        => si était en pause (savedRun=0) => pause
-        => si était en cours (savedRun=1) => continue
-     C) initialTime changé => rien à corriger,
-        le timer tourne sur le nouveau temps
+   INIT v3.5
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -414,53 +476,46 @@ function init(fd) {
   elGoalBox.style.display = cfgBool('goalEnabled') ? '' : 'none';
   setIdle();
   startRotation();
+  initGbars();
 
   const rawInitial = cfg('initialTime');
   const parsed     = parseTimeField(rawInitial);
   safeCurrent      = parsed > 0 ? parsed : 3600;
 
-  // ETAPE 1 : affiche et lance immédiatement
+  // Affiche immédiatement
   timeLeft = safeCurrent;
   elTimer.style.color = '';
   updateTimerDisplay();
 
+  // ETAPE 1 : autoStart sans attendre le store
   if (cfgBool('autoStart') && safeCurrent > 0) {
-    startTimer(); // démarre SANS attendre le store
+    startTimer();
   } else {
-    storeSave();  // sauvegarde l'état pause
+    storeSave();
   }
 
-  // ETAPE 2 : storeLoad corrige si rechargement
+  // ETAPE 2 : storeLoad corrige si rechargement récent
   const now = Date.now();
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
-
-    const elapsed     = (savedStamp !== null) ? (now - savedStamp) : Infinity;
-    const isRecent    = elapsed < RELOAD_WINDOW_MS;
-    const hasSave     = savedTime !== null && savedTime >= 0;
+    const elapsed      = (savedStamp !== null) ? (now - savedStamp) : Infinity;
+    const isRecent     = elapsed < RELOAD_WINDOW_MS;
+    const hasSave      = savedTime !== null && savedTime >= 0;
     const initUnchanged = hasSave && savedInit !== null && savedInit === safeCurrent;
 
-    // Seulement si c'est un rechargement récent avec le même initialTime
     if (isRecent && hasSave && initUnchanged) {
-
-      // Remplace le temps par le temps sauvegardé
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       running = false;
       timeLeft = savedTime;
       updateTimerDisplay();
-
       if (savedTime <= 0) {
         elTimer.style.color = '#ffffff99';
         storeSave();
       } else if (savedRun === 0) {
-        // Était explicitement en pause => on respecte la pause
         storeSave();
       } else {
-        // savedRun === 1 ou null => on reprend (autoStart ou était en cours)
         startTimer();
       }
     }
-    // Sinon (premier lancement, store vide, initialTime changé)
-    // => le timer tourne déjà depuis l'étape 1, rien à faire
   });
 }
 
@@ -541,26 +596,28 @@ window.addEventListener('onEventReceived', function(obj) {
       secsToAdd=tierSeconds('timePerSub',tierRaw);
       if (cfg('goalType')==='sub') goalAdd=1;
     }
-    enqueueEvent({type,name:uname,bottomExtra,topTier:tier,secsToAdd,goalAdd,infoSecs:secsToAdd});
+    // sub = 1 pour les barres (sub + resub + gift tous comptent comme sub)
+    const gbarAmount = isGift ? safeInt(data.amount,1) : 1;
+    enqueueEvent({type,name:uname,bottomExtra,topTier:tier,secsToAdd,goalAdd,infoSecs:secsToAdd,gbarType:'sub',gbarAmount});
   }
 
   if (listener==='tip-latest') {
     if (!cfgBool('donoEnabled')) return;
     const amount=safeFloat(data.amount,0);
     const secsToAdd=Math.floor(amount/safeFloat(cfg('timePerDonoPer'),DEFAULT.timePerDonoPer))*safeInt(cfg('timePerDono'),DEFAULT.timePerDono);
-    enqueueEvent({type:'dono',name:data.username||'Anonyme',bottomExtra:amount+'€',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='dono'?amount:null,infoSecs:secsToAdd});
+    enqueueEvent({type:'dono',name:data.username||'Anonyme',bottomExtra:amount+'€',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='dono'?amount:null,infoSecs:secsToAdd,gbarType:'dono',gbarAmount:amount});
   }
 
   if (listener==='cheer-latest') {
     if (!cfgBool('bitsEnabled')) return;
     const bits=safeInt(data.amount,0);
     const secsToAdd=Math.floor(bits/safeInt(cfg('timePerBitsPer'),DEFAULT.timePerBitsPer))*safeInt(cfg('timePerBits'),DEFAULT.timePerBits);
-    enqueueEvent({type:'bits',name:data.displayName||data.name||'Anonyme',bottomExtra:bits+' bits',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='bits'?bits:null,infoSecs:secsToAdd});
+    enqueueEvent({type:'bits',name:data.displayName||data.name||'Anonyme',bottomExtra:bits+' bits',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='bits'?bits:null,infoSecs:secsToAdd,gbarType:'bits',gbarAmount:bits});
   }
 
   if (listener==='follower-latest') {
     if (!cfgBool('followEnabled')) return;
     const secsToAdd=safeInt(cfg('timePerFollow'),DEFAULT.timePerFollow);
-    enqueueEvent({type:'follow',name:data.displayName||data.name||'Anonyme',bottomExtra:null,topTier:null,secsToAdd,goalAdd:null,infoSecs:secsToAdd});
+    enqueueEvent({type:'follow',name:data.displayName||data.name||'Anonyme',bottomExtra:null,topTier:null,secsToAdd,goalAdd:null,infoSecs:secsToAdd,gbarType:null,gbarAmount:0});
   }
 });
