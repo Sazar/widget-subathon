@@ -1,8 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v3.1 DEBUG
-   On affiche safeCurrent dans le timer IMMEDIATEMENT
-   avant meme de lire le store.
-   storeLoad ne fait que corriger si besoin.
+   SUBATHON WIDGET v3.2
+   - Timer garde son temps si on change des
+     paramètres autres que Temps initial
+   - Reset uniquement si initialTime change
+   - Fenêtre de rechargement étendue à 5 minutes
    ============================================= */
 
 const DEFAULT = {
@@ -78,7 +79,9 @@ const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
-const RELOAD_WINDOW_MS = 12000;
+
+// 5 minutes : couvre largement le temps de sauvegarde de paramètres dans SE
+const RELOAD_WINDOW_MS = 5 * 60 * 1000;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -377,23 +380,20 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.1
-   CHANGEMENT CLE :
-   On affiche safeCurrent IMMEDIATEMENT dans le
-   timer (avant storeLoad) pour ne jamais rester
-   bloque a --:--:--.
-   storeLoad peut ensuite corriger si c'est
-   un vrai rechargement SE.
+   INIT v3.2
+   Logique de restauration :
+   1. On affiche immédiatement safeCurrent (initialTime)
+   2. storeLoad vérifie :
+      - Timestamp < 5 min  => rechargement/param change
+      - initialTime INCHANGE => on restaure le temps en cours
+      - initialTime CHANGE   => on repart sur le nouveau temps
    ============================================= */
 function init(fd) {
-  console.log('[SA] init() appele, fieldData=', fd);
   if (fd) window.fieldData = fd;
 
-  // Stoppe timer en cours
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
 
-  // Styles
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   elGoalUnit.textContent = goalUnitLabel();
@@ -402,43 +402,26 @@ function init(fd) {
   setIdle();
   startRotation();
 
-  // Calcule le temps initial
   const rawInitial = cfg('initialTime');
   const parsed     = parseTimeField(rawInitial);
   safeCurrent      = parsed > 0 ? parsed : 3600;
 
-  console.log('[SA] rawInitial=', rawInitial, 'parsed=', parsed, 'safeCurrent=', safeCurrent);
-
-  // === AFFICHE IMMEDIATEMENT safeCurrent ===
-  // Ne reste plus jamais a --:--:--
+  // Affiche immédiatement safeCurrent — ne reste jamais à --:--:--
   timeLeft = safeCurrent;
   elTimer.style.color = '';
   updateTimerDisplay();
 
-  // Demarre le timer de suite si autoStart
-  // storeLoad va corriger si c'est un rechargement
-  if (cfgBool('autoStart')) {
-    startTimer();
-  } else {
-    storeSave();
-  }
-
   const now = Date.now();
 
-  // Lecture store : si rechargement SE recent ET meme initialTime
-  // ET on avait un temps sauvegarde -> on le restaure
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
-    console.log('[SA] store: savedTime=',savedTime,'savedRun=',savedRun,'savedInit=',savedInit,'savedStamp=',savedStamp,'now=',now,'delta=',savedStamp?now-savedStamp:'N/A');
-
-    const isReload    = savedStamp !== null && (now - savedStamp) < RELOAD_WINDOW_MS;
+    const elapsed     = savedStamp !== null ? now - savedStamp : Infinity;
+    const isRecent    = elapsed < RELOAD_WINDOW_MS;   // < 5 min
     const hasSave     = savedTime !== null && savedTime >= 0;
     const initChanged = savedInit !== null && savedInit !== safeCurrent;
 
-    console.log('[SA] isReload=',isReload,'hasSave=',hasSave,'initChanged=',initChanged);
-
-    if (isReload && hasSave && !initChanged) {
-      // Rechargement SE : restaure le temps exact
-      console.log('[SA] -> RESTORE savedTime=', savedTime);
+    if (isRecent && hasSave && !initChanged) {
+      // --- Rechargement OU changement de paramètres (sauf initialTime)
+      // On restaure le temps exact en cours
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       running = false;
       timeLeft = savedTime;
@@ -449,26 +432,32 @@ function init(fd) {
         if (savedTime <= 0) elTimer.style.color = '#ffffff99';
         storeSave();
       }
+    } else if (isRecent && hasSave && initChanged) {
+      // --- initialTime a changé : on repart sur le nouveau temps
+      if (cfgBool('autoStart') && safeCurrent > 0) {
+        startTimer();
+      } else {
+        storeSave();
+      }
     } else {
-      // Pas de rechargement ou initialTime change : on garde safeCurrent deja affiche
-      console.log('[SA] -> FRESH START avec safeCurrent=', safeCurrent);
+      // --- Premier chargement ou store vide
+      if (cfgBool('autoStart') && safeCurrent > 0) {
+        startTimer();
+      } else {
+        storeSave();
+      }
     }
   });
 }
 
 window.addEventListener('onWidgetLoad', function(obj) {
   const fd = obj && obj.detail && obj.detail.fieldData ? obj.detail.fieldData : undefined;
-  console.log('[SA] onWidgetLoad, fd=', fd);
   init(fd);
 });
 
 let _fallbackDone = false;
 setTimeout(() => {
-  if (!_fallbackDone) {
-    console.log('[SA] fallback timeout, onWidgetLoad jamais recu');
-    _fallbackDone = true;
-    init(undefined);
-  }
+  if (!_fallbackDone) { _fallbackDone = true; init(undefined); }
 }, 1500);
 window.addEventListener('onWidgetLoad', () => { _fallbackDone = true; });
 
