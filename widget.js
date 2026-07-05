@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v2.42
+   SUBATHON WIDGET v2.43
    ============================================= */
 
 const DEFAULT = {
@@ -140,36 +140,38 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 /* =============================================
    EVENT QUEUE
-   Chaque alerte attend que la précédente soit
-   terminée + ALERT_GAP ms avant de s'afficher.
-   Le temps est ajouté immédiatement à la file.
+   Chaque payload contient toutes les infos.
+   Tout (temps + affichage) se déclenche ensemble
+   lors du traitement. Minimum 2s entre deux events.
    ============================================= */
-const ALERT_DISPLAY = 5000;  // durée affichage d'une alerte (ms)
-const ALERT_GAP     = 800;   // délai entre deux alertes (ms)
+const QUEUE_GAP  = 2000; // ms minimum entre deux alertes
 
-const eventQueue  = [];
-let   queueBusy   = false;
+const eventQueue = [];
+let   queueBusy  = false;
+let   lastFired  = 0;
 
 function enqueueEvent(payload) {
-  // Le temps est ajouté tout de suite, l'affichage est mis en file
-  if (payload.secsToAdd) addTime(payload.secsToAdd);
-  if (payload.goalAdd)   addGoalDirect(payload.goalAdd);
   eventQueue.push(payload);
   drainQueue();
 }
 
 function drainQueue() {
   if (queueBusy || eventQueue.length === 0) return;
+  const now  = Date.now();
+  const wait = Math.max(0, QUEUE_GAP - (now - lastFired));
   queueBusy = true;
-  const payload = eventQueue.shift();
-  _displayEvent(payload);
   setTimeout(() => {
+    const payload = eventQueue.shift();
+    fireEvent(payload);
+    lastFired = Date.now();
     queueBusy = false;
     drainQueue();
-  }, ALERT_DISPLAY + ALERT_GAP);
+  }, wait);
 }
 
-function _displayEvent({ type, name, bottomExtra, topTier, infoSecs }) {
+function fireEvent({ type, name, bottomExtra, topTier, secsToAdd, goalAdd, infoSecs }) {
+  if (secsToAdd) addTime(secsToAdd);
+  if (goalAdd)   addGoal(goalAdd);
   showInfoBox(infoSecs || 0);
   showAlert(type, name, bottomExtra, topTier, true);
   lastEventState = { type, name, bottomExtra, topTier };
@@ -432,7 +434,7 @@ function addTime(seconds) {
   updateTimerDisplay();
 }
 
-function addGoalDirect(amount) {
+function addGoal(amount) {
   goalCurrent = Math.min(goalTarget, goalCurrent + amount);
   elGoalCur.textContent = goalCurrent;
 }
