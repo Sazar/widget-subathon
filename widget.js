@@ -1,8 +1,14 @@
 /* =============================================
-   SUBATHON WIDGET v4.0
+   SUBATHON WIDGET v4.1
    - FIX CRITIQUE: gift/resub tierSeconds prefix corrigé
      'timePerGiftT' -> 'timePerGift' (évite le double T)
-   - Cascade barre : 10s assombrie puis slide-out avant d'afficher la suivante
+   - Cascade barre : assombrie (configurable) puis slide-out avant d'afficher la suivante
+   NOUVEAUTÉS v4.1 :
+   - Assombrissement réduit (opacity 0.60, saturate 0.7, brightness 0.85)
+   - --bar-color setté inline sur chaque .goal-bar-fill (glow pulse correct par barre)
+   - CASCADE_HOLD_MS configurable via fieldData.cascadeHoldSecs (défaut 10s)
+   - Barres de goal générées dynamiquement en JS (HTML allégé)
+   - File d'attente d'alertes : QUEUE_GAP respecté entre chaque événement en rafale
    ============================================= */
 
 const DEFAULT = {
@@ -60,6 +66,9 @@ const DEFAULT = {
   infoText:       '#ffffff',
   glowColor:      '#e84118',
   glowOpacity:    45,
+  /* Durée (secondes) pendant laquelle la barre complétée reste assombrie
+     avant de laisser la place à la suivante. Configurable via fieldData. */
+  cascadeHoldSecs: 10,
   gbar1Enabled:  false, gbar1Label:  'Objectif subs',  gbar1Type:  'sub',  gbar1Target:  100,  gbar1Color:  '#e84118',
   gbar2Enabled:  false, gbar2Label:  'Objectif tips',  gbar2Type:  'dono', gbar2Target:  500,  gbar2Color:  '#e84118',
   gbar3Enabled:  false, gbar3Label:  'Objectif bits',  gbar3Type:  'bits', gbar3Target:  10000, gbar3Color: '#e84118',
@@ -93,8 +102,10 @@ const SK_GBAR  = (n) => 'sa_gbar' + n;
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
 const MAX_BARS    = 10;
 const MAX_VISIBLE = 3;
-// Délai (ms) pendant lequel la barre complétée reste assombrie avant de céder la place
-const CASCADE_HOLD_MS = 10000;
+
+/* CASCADE_HOLD_MS : lu depuis fieldData.cascadeHoldSecs au moment de l'init.
+   Valeur par défaut : 10 000 ms (10s). */
+let CASCADE_HOLD_MS = 10000;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -223,7 +234,7 @@ for (let i = 1; i <= MAX_BARS; i++) gbarCurrent[i] = 0;
 
 let gbarOrder        = [];
 let gbarWindowStart  = 0;
-let gbarCascadeLocked = false; // verrou pendant le hold de 10s
+let gbarCascadeLocked = false;
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -239,18 +250,49 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 function gbarEl(n, id) { return document.getElementById('gbar'+n+'-'+id); }
 
+// ===== GÉNÉRATION DYNAMIQUE DES BARRES =====
+// Les 10 barres sont créées en JS plutôt qu'en dur dans le HTML.
+// Avantage : HTML allégé, structure centralisée, facile à modifier.
+function buildGbarDOM() {
+  const container = document.getElementById('goalBarsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  for (let n = 1; n <= MAX_BARS; n++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'goal-bar-wrap';
+    wrap.id = 'gbar' + n;
+    wrap.style.display = 'none';
+    wrap.innerHTML = `
+      <div class="goal-bar-header">
+        <span class="goal-bar-label" id="gbar${n}-label">Objectif ${n}</span>
+        <span class="goal-bar-count">
+          <span id="gbar${n}-cur">0</span>
+          <span class="goal-bar-sep">/</span>
+          <span id="gbar${n}-tgt">100</span>
+        </span>
+      </div>
+      <div class="goal-bar-track">
+        <div class="goal-bar-fill" id="gbar${n}-fill"></div>
+      </div>
+    `;
+    container.appendChild(wrap);
+  }
+}
+
 // ===== COULEUR PAR BARRE =====
+// --bar-color est setté inline sur chaque .goal-bar-fill
+// pour que @keyframes barFlash utilise la bonne couleur par barre.
 function applyGbarColor(n) {
   const fill = gbarEl(n, 'fill');
   if (!fill) return;
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
-  fill.dataset.barColor = color;
   fill.style.background = color;
   fill.style.boxShadow  = `0 0 8px ${color}88`;
+  // Permet à @keyframes barFlash d'utiliser la bonne couleur pour chaque barre
   fill.style.setProperty('--bar-color', color);
 }
 
-// ===== CASCADE avec hold 10s =====
+// ===== CASCADE avec hold configurable =====
 function refreshCascade(animate) {
   if (!gbarOrder.length) return;
   for (let i = 0; i < gbarOrder.length; i++) {
@@ -277,10 +319,10 @@ function refreshCascade(animate) {
 
 /*
   Quand la barre de tête est pleine :
-  1. On ajoute la classe 'dimmed' sur le wrap (assombrissement)
-  2. On attend CASCADE_HOLD_MS (10s)
-  3. On fait un slide-out de la barre sortante
-  4. On avance la fenêtre et on slide-in la suivante
+  1. On ajoute la classe 'dimmed' (assombrissement léger)
+  2. On attend CASCADE_HOLD_MS (configurable via cascadeHoldSecs)
+  3. Slide-out de la barre sortante
+  4. Avance la fenêtre + slide-in de la suivante
 */
 function checkCascadeAdvance() {
   if (gbarCascadeLocked) return;
@@ -291,7 +333,6 @@ function checkCascadeAdvance() {
   const target = safeFloat(cfg('gbar'+headN+'Target'), 100);
   if (gbarCurrent[headN] < target) return;
 
-  // Vérifie qu'il y a une barre suivante à afficher
   if (gbarWindowStart + 1 >= gbarOrder.length) return;
 
   gbarCascadeLocked = true;
@@ -300,7 +341,7 @@ function checkCascadeAdvance() {
   // Étape 1 : assombrir
   if (headWrap) headWrap.classList.add('dimmed');
 
-  // Étape 2 : après 10s, slide-out puis slide-in suivante
+  // Étape 2 : après CASCADE_HOLD_MS, slide-out puis slide-in suivante
   setTimeout(function() {
     if (headWrap) {
       headWrap.classList.remove('dimmed');
@@ -314,7 +355,7 @@ function checkCascadeAdvance() {
       gbarWindowStart = Math.min(gbarWindowStart + 1, gbarOrder.length);
       gbarCascadeLocked = false;
       refreshCascade(true);
-    }, 500); // durée du slide-out
+    }, 500);
   }, CASCADE_HOLD_MS);
 }
 
@@ -369,7 +410,6 @@ function updateGbar(n) {
   fill.style.width = pct + '%';
   if (pct >= 100) {
     fill.classList.add('complete');
-    // Déclenche la cascade hold après 700ms (laisse la barre finir son animation de remplissage)
     setTimeout(checkCascadeAdvance, 700);
   } else {
     fill.classList.remove('complete');
@@ -388,7 +428,9 @@ function addToGbar(type, amount) {
   }
 }
 
-// ===== QUEUE =====
+// ===== QUEUE D'ALERTES =====
+// Garantit un délai minimum (QUEUE_GAP) entre chaque alerte affichée,
+// évitant les chevauchements en cas de gift bomb ou de rafale d'événements.
 const QUEUE_GAP  = 2000;
 const eventQueue = [];
 let   queueBusy  = false;
@@ -396,16 +438,21 @@ let   lastFired  = 0;
 
 function enqueueEvent(payload) { eventQueue.push(payload); drainQueue(); }
 function drainQueue() {
-  if (queueBusy||!eventQueue.length) return;
-  const wait = Math.max(0,QUEUE_GAP-(Date.now()-lastFired));
+  if (queueBusy || !eventQueue.length) return;
+  const wait = Math.max(0, QUEUE_GAP - (Date.now() - lastFired));
   queueBusy = true;
-  setTimeout(()=>{ fireEvent(eventQueue.shift()); lastFired=Date.now(); queueBusy=false; drainQueue(); },wait);
+  setTimeout(function() {
+    fireEvent(eventQueue.shift());
+    lastFired  = Date.now();
+    queueBusy  = false;
+    drainQueue();
+  }, wait);
 }
-function fireEvent({type,name,months,topTier,secsToAdd,goalAdd,infoSecs,gbarType,gbarAmount}) {
+function fireEvent({type, name, months, topTier, secsToAdd, goalAdd, infoSecs, gbarType, gbarAmount}) {
   if (secsToAdd)              addTime(secsToAdd);
   if (goalAdd)                addGoal(goalAdd);
   if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
-  showInfoBox(infoSecs||0);
+  showInfoBox(infoSecs || 0);
   showAlert(type, name, months, topTier, true);
   lastEventState = {type, name, months, topTier};
   startIdleCycle();
@@ -417,7 +464,7 @@ function buildIdleText() {
   if (cfgBool('donoEnabled'))   parts.push('Tips');
   if (cfgBool('bitsEnabled'))   parts.push('Bits');
   if (cfgBool('followEnabled')) parts.push('Follow');
-  return parts.length?parts.join('/'):'Subathon';
+  return parts.length ? parts.join('/') : 'Subathon';
 }
 function setIdle() {
   elAlertType.textContent = buildIdleText();
@@ -425,158 +472,163 @@ function setIdle() {
   elAlertName.classList.add('idle');
   elAlertName.style.fontSize = '';
 }
-const IDLE_DELAY=60000, CYCLE_DELAY=20000;
-let lastEventState=null,idleTimer=null,cycleInterval=null,cycleShowIdle=true;
-function resetIdleCycle(){
-  if(idleTimer){clearTimeout(idleTimer);idleTimer=null;}
-  if(cycleInterval){clearInterval(cycleInterval);cycleInterval=null;}
+const IDLE_DELAY = 60000, CYCLE_DELAY = 20000;
+let lastEventState = null, idleTimer = null, cycleInterval = null, cycleShowIdle = true;
+function resetIdleCycle() {
+  if (idleTimer)     { clearTimeout(idleTimer);      idleTimer = null; }
+  if (cycleInterval) { clearInterval(cycleInterval); cycleInterval = null; }
 }
-function startIdleCycle(){
+function startIdleCycle() {
   resetIdleCycle();
-  if(!lastEventState) return;
-  idleTimer=setTimeout(()=>{
+  if (!lastEventState) return;
+  idleTimer = setTimeout(function() {
     setIdle();
-    cycleInterval=setInterval(()=>{
-      cycleShowIdle=!cycleShowIdle;
-      if(cycleShowIdle) setIdle();
-      else{const{type,name,months,topTier}=lastEventState;showAlert(type,name,months,topTier,false);}
-    },CYCLE_DELAY);
-  },IDLE_DELAY);
+    cycleInterval = setInterval(function() {
+      cycleShowIdle = !cycleShowIdle;
+      if (cycleShowIdle) setIdle();
+      else { const {type,name,months,topTier} = lastEventState; showAlert(type,name,months,topTier,false); }
+    }, CYCLE_DELAY);
+  }, IDLE_DELAY);
 }
 
-let activeSlot=elSlotA, inactiveSlot=elSlotB;
-let flipLocked=false,rotationLocked=false,rotationIndex=0;
-let rotationInterval=null,lastEventSecs=null;
+let activeSlot = elSlotA, inactiveSlot = elSlotB;
+let flipLocked = false, rotationLocked = false, rotationIndex = 0;
+let rotationInterval = null, lastEventSecs = null;
 
-function formatTimeLabel(s){
-  if(s<60) return s+'s';
-  if(s<3600) return Math.round(s/60)+' min';
-  const h=Math.floor(s/3600),m=Math.round((s%3600)/60);
-  return h+'h'+(m?m+'min':'');
+function formatTimeLabel(s) {
+  if (s < 60)   return s + 's';
+  if (s < 3600) return Math.round(s / 60) + ' min';
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  return h + 'h' + (m ? m + 'min' : '');
 }
-function buildRotationSlides(){
-  const slides=[
-    'T1 +'   +formatTimeLabel(safeInt(cfg('timePerSubT1'),   DEFAULT.timePerSubT1)),
-    'T2 +'   +formatTimeLabel(safeInt(cfg('timePerSubT2'),   DEFAULT.timePerSubT2)),
-    'T3 +'   +formatTimeLabel(safeInt(cfg('timePerSubT3'),   DEFAULT.timePerSubT3)),
-    'Prime +'+formatTimeLabel(safeInt(cfg('timePerSubPrime'),DEFAULT.timePerSubPrime)),
+function buildRotationSlides() {
+  const slides = [
+    'T1 +'   + formatTimeLabel(safeInt(cfg('timePerSubT1'),    DEFAULT.timePerSubT1)),
+    'T2 +'   + formatTimeLabel(safeInt(cfg('timePerSubT2'),    DEFAULT.timePerSubT2)),
+    'T3 +'   + formatTimeLabel(safeInt(cfg('timePerSubT3'),    DEFAULT.timePerSubT3)),
+    'Prime +' + formatTimeLabel(safeInt(cfg('timePerSubPrime'), DEFAULT.timePerSubPrime)),
   ];
-  if(lastEventSecs!==null) slides.push('+'+formatTimeLabel(lastEventSecs));
+  if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
   return slides;
 }
-function flipTo(text,animate){
-  if(animate&&flipLocked) return;
-  inactiveSlot.textContent=text;
-  if(!animate){
+function flipTo(text, animate) {
+  if (animate && flipLocked) return;
+  inactiveSlot.textContent = text;
+  if (!animate) {
     activeSlot.classList.remove('active','flip-out','flip-in');
     inactiveSlot.classList.remove('flip-out','flip-in');
     inactiveSlot.classList.add('active');
-    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot]; return;
+    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    return;
   }
-  flipLocked=true;
+  flipLocked = true;
   activeSlot.classList.remove('active'); activeSlot.classList.add('flip-out');
   inactiveSlot.classList.remove('flip-out'); inactiveSlot.classList.add('flip-in');
-  setTimeout(()=>{
+  setTimeout(function() {
     activeSlot.classList.remove('flip-out');
     inactiveSlot.classList.remove('flip-in'); inactiveSlot.classList.add('active');
-    [activeSlot,inactiveSlot]=[inactiveSlot,activeSlot]; flipLocked=false;
-  },320);
+    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    flipLocked = false;
+  }, 320);
 }
-function rotationTick(){
-  if(rotationLocked) return;
-  const slides=buildRotationSlides();
-  rotationIndex=rotationIndex%slides.length;
-  flipTo(slides[rotationIndex],true);
-  rotationIndex=(rotationIndex+1)%slides.length;
+function rotationTick() {
+  if (rotationLocked) return;
+  const slides = buildRotationSlides();
+  rotationIndex = rotationIndex % slides.length;
+  flipTo(slides[rotationIndex], true);
+  rotationIndex = (rotationIndex + 1) % slides.length;
 }
-function startRotation(){
-  if(rotationInterval) clearInterval(rotationInterval);
-  rotationIndex=0; rotationLocked=false;
-  const slides=buildRotationSlides();
-  flipTo(slides[0],false); rotationIndex=1;
-  rotationInterval=setInterval(rotationTick,5000);
+function startRotation() {
+  if (rotationInterval) clearInterval(rotationInterval);
+  rotationIndex = 0; rotationLocked = false;
+  const slides = buildRotationSlides();
+  flipTo(slides[0], false); rotationIndex = 1;
+  rotationInterval = setInterval(rotationTick, 5000);
 }
-function showInfoBox(seconds){
-  lastEventSecs=seconds; rotationLocked=true; rotationIndex=0;
-  flipTo('+'+formatTimeLabel(seconds),true);
+function showInfoBox(seconds) {
+  lastEventSecs = seconds; rotationLocked = true; rotationIndex = 0;
+  flipTo('+' + formatTimeLabel(seconds), true);
   elInfoBox.classList.remove('pop'); void elInfoBox.offsetWidth; elInfoBox.classList.add('pop');
-  setTimeout(()=>{rotationLocked=false;},6000);
+  setTimeout(function() { rotationLocked = false; }, 6000);
 }
 
-function loadFont(fontName){
-  if(fontName==='Rajdhani') return;
-  const q=GOOGLE_FONTS[fontName]; if(!q) return;
-  if(document.querySelector(`link[data-font="${fontName}"]`)) return;
-  const l=document.createElement('link');
-  l.rel='stylesheet'; l.setAttribute('data-font',fontName);
-  l.href=`https://fonts.googleapis.com/css2?family=${q}&display=swap`;
+function loadFont(fontName) {
+  if (fontName === 'Rajdhani') return;
+  const q = GOOGLE_FONTS[fontName]; if (!q) return;
+  if (document.querySelector(`link[data-font="${fontName}"]`)) return;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet'; l.setAttribute('data-font', fontName);
+  l.href = `https://fonts.googleapis.com/css2?family=${q}&display=swap`;
   document.head.appendChild(l);
 }
-function applyGlobalFont(){
-  const f=String(cfg('widgetFont')||DEFAULT.widgetFont);
+function applyGlobalFont() {
+  const f = String(cfg('widgetFont') || DEFAULT.widgetFont);
   loadFont(f);
-  document.documentElement.style.setProperty('--widget-font',`'${f}', 'Rajdhani', sans-serif`);
+  document.documentElement.style.setProperty('--widget-font', `'${f}', 'Rajdhani', sans-serif`);
 }
-function applyAlertStyle(){ elAlertName.dataset.eventSize=safeInt(cfg('alertFontSize'),DEFAULT.alertFontSize)+'px'; }
-function applyTimerSize()  { elTimer.style.fontSize=safeInt(cfg('timerFontSize'),DEFAULT.timerFontSize)+'px'; }
-function applyColors(){
-  const root=document.documentElement;
-  const boxBg =hexToRgba(cfg('boxBgColor'), safeInt(cfg('boxBgOpacity'), DEFAULT.boxBgOpacity));
-  const goalBg=hexToRgba(cfg('goalBgColor'),safeInt(cfg('goalBgOpacity'),DEFAULT.goalBgOpacity));
-  const glow  =hexToRgba(cfg('glowColor'),  safeInt(cfg('glowOpacity'),  DEFAULT.glowOpacity));
-  const map={
-    '--widget-width':cfg('widgetWidth'),
-    '--accent':cfg('accent'),
-    '--text-accent':cfg('accent'),
-    '--timer-bg':cfg('timerBg'),
-    '--timer-text':cfg('timerText'),
-    '--goal-bg':goalBg,
-    '--goal-text':cfg('goalText'),
-    '--info-bg':cfg('infoBg'),
-    '--info-text':cfg('infoText'),
-    '--glow':glow
+function applyAlertStyle() { elAlertName.dataset.eventSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize) + 'px'; }
+function applyTimerSize()   { elTimer.style.fontSize = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize) + 'px'; }
+function applyColors() {
+  const root   = document.documentElement;
+  const boxBg  = hexToRgba(cfg('boxBgColor'),  safeInt(cfg('boxBgOpacity'),  DEFAULT.boxBgOpacity));
+  const goalBg = hexToRgba(cfg('goalBgColor'), safeInt(cfg('goalBgOpacity'), DEFAULT.goalBgOpacity));
+  const glow   = hexToRgba(cfg('glowColor'),   safeInt(cfg('glowOpacity'),   DEFAULT.glowOpacity));
+  const map = {
+    '--widget-width': cfg('widgetWidth'),
+    '--accent':       cfg('accent'),
+    '--text-accent':  cfg('accent'),
+    '--timer-bg':     cfg('timerBg'),
+    '--timer-text':   cfg('timerText'),
+    '--goal-bg':      goalBg,
+    '--goal-text':    cfg('goalText'),
+    '--info-bg':      cfg('infoBg'),
+    '--info-text':    cfg('infoText'),
+    '--glow':         glow,
   };
-  for(const[k,v]of Object.entries(map)) if(v) root.style.setProperty(k,v);
-  elAlertBox.style.background=boxBg;
+  for (const [k, v] of Object.entries(map)) if (v) root.style.setProperty(k, v);
+  elAlertBox.style.background = boxBg;
 }
 
-function startTimer(){
-  if(timerInterval) clearInterval(timerInterval);
-  running=true; elTimer.style.color='';
-  timerInterval=setInterval(()=>{
-    if(timeLeft>0){ timeLeft--; updateTimerDisplay(); storeSave(); }
-    else { running=false; clearInterval(timerInterval); timerInterval=null; elTimer.style.color='#ffffff99'; storeSave(); }
-  },1000);
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  running = true; elTimer.style.color = '';
+  timerInterval = setInterval(function() {
+    if (timeLeft > 0) { timeLeft--; updateTimerDisplay(); storeSave(); }
+    else { running = false; clearInterval(timerInterval); timerInterval = null; elTimer.style.color = '#ffffff99'; storeSave(); }
+  }, 1000);
 }
-function pauseTimer(){
-  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
-  running=false; storeSave();
+function pauseTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  running = false; storeSave();
 }
-function addTime(seconds){
-  if(cfgBool('lockOnZero')&&timeLeft<=0) return;
-  if(timeLeft<0) timeLeft=0;
-  timeLeft+=seconds;
-  const mx=parseTimeField(cfg('maxTime'));
-  if(mx>0&&timeLeft>mx) timeLeft=mx;
-  if(!running&&timeLeft>0) startTimer();
+function addTime(seconds) {
+  if (cfgBool('lockOnZero') && timeLeft <= 0) return;
+  if (timeLeft < 0) timeLeft = 0;
+  timeLeft += seconds;
+  const mx = parseTimeField(cfg('maxTime'));
+  if (mx > 0 && timeLeft > mx) timeLeft = mx;
+  if (!running && timeLeft > 0) startTimer();
   elTimer.classList.remove('pulse'); void elTimer.offsetWidth; elTimer.classList.add('pulse');
-  setTimeout(()=>elTimer.classList.remove('pulse'),450);
+  setTimeout(function() { elTimer.classList.remove('pulse'); }, 450);
   updateTimerDisplay(); storeSave();
 }
-function removeTime(seconds){
-  timeLeft=Math.max(0,timeLeft-seconds);
+function removeTime(seconds) {
+  timeLeft = Math.max(0, timeLeft - seconds);
   elTimer.classList.remove('pulse'); void elTimer.offsetWidth; elTimer.classList.add('pulse');
-  setTimeout(()=>elTimer.classList.remove('pulse'),450);
+  setTimeout(function() { elTimer.classList.remove('pulse'); }, 450);
   updateTimerDisplay(); storeSave();
-  if(timeLeft<=0){running=false;if(timerInterval){clearInterval(timerInterval);timerInterval=null;}elTimer.style.color='#ffffff99';}
+  if (timeLeft <= 0) { running = false; if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } elTimer.style.color = '#ffffff99'; }
 }
-function addGoal(amount){ goalCurrent=Math.min(goalTarget,goalCurrent+amount); elGoalCur.textContent=goalCurrent; }
-function updateTimerDisplay(){
-  if(timeLeft<0){elTimer.textContent='--:--:--';return;}
-  const tl=Math.max(0,timeLeft);
-  elTimer.textContent=String(Math.floor(tl/3600)).padStart(2,'0')+':'+String(Math.floor((tl%3600)/60)).padStart(2,'0')+':'+String(tl%60).padStart(2,'0');
+function addGoal(amount) { goalCurrent = Math.min(goalTarget, goalCurrent + amount); elGoalCur.textContent = goalCurrent; }
+function updateTimerDisplay() {
+  if (timeLeft < 0) { elTimer.textContent = '--:--:--'; return; }
+  const tl = Math.max(0, timeLeft);
+  elTimer.textContent =
+    String(Math.floor(tl / 3600)).padStart(2,'0') + ':' +
+    String(Math.floor((tl % 3600) / 60)).padStart(2,'0') + ':' +
+    String(tl % 60).padStart(2,'0');
 }
-function goalUnitLabel(){ const t=cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
+function goalUnitLabel() { const t = cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
 // ===== ALERT BOX =====
 function showAlert(type, name, months, topTier, flash=true) {
@@ -584,9 +636,9 @@ function showAlert(type, name, months, topTier, flash=true) {
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
   let topLine = '';
-  if      (type === 'sub')    topLine = 'Nouveau Sub'    + (topTier ? ' ' + topTier : '');
-  else if (type === 'resub')  topLine = 'Réabonnement'   + (topTier ? ' ' + topTier : '');
-  else if (type === 'gift')   topLine = 'Gift Sub'        + (topTier ? ' ' + topTier : '');
+  if      (type === 'sub')    topLine = 'Nouveau Sub'  + (topTier ? ' ' + topTier : '');
+  else if (type === 'resub')  topLine = 'Réabonnement' + (topTier ? ' ' + topTier : '');
+  else if (type === 'gift')   topLine = 'Gift Sub'      + (topTier ? ' ' + topTier : '');
   else if (type === 'dono')   topLine = 'Nouveau Don';
   else if (type === 'bits')   topLine = 'Cheers';
   else if (type === 'follow') topLine = 'Nouveau Follow';
@@ -607,13 +659,19 @@ function showAlert(type, name, months, topTier, flash=true) {
 }
 
 /* =============================================
-   INIT v4.0
+   INIT v4.1
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
 
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
+
+  // Lecture de cascadeHoldSecs depuis fieldData (en secondes), converti en ms
+  CASCADE_HOLD_MS = safeInt(cfg('cascadeHoldSecs'), DEFAULT.cascadeHoldSecs) * 1000;
+
+  // Génère les barres dynamiquement avant tout le reste
+  buildGbarDOM();
 
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
@@ -668,10 +726,10 @@ window.addEventListener('onWidgetLoad', function(obj) {
 });
 
 let _fallbackDone = false;
-setTimeout(() => {
+setTimeout(function() {
   if (!_fallbackDone) { _fallbackDone = true; init(undefined); }
 }, 1500);
-window.addEventListener('onWidgetLoad', () => { _fallbackDone = true; });
+window.addEventListener('onWidgetLoad', function() { _fallbackDone = true; });
 
 let _lastEventId = null;
 
@@ -684,36 +742,36 @@ window.addEventListener('onEventReceived', function(obj) {
     const data = obj.detail.event.data;
     const msg  = String(data.text||'').trim();
     if (cfgBool('cmdModOnly')) {
-      const isMod = !!(data.tags&&data.tags.mod==='1');
-      const isBc  = (data.badges||[]).some(b=>b.type==='broadcaster');
-      if (!isMod&&!isBc) return;
+      const isMod = !!(data.tags && data.tags.mod === '1');
+      const isBc  = (data.badges||[]).some(b => b.type === 'broadcaster');
+      if (!isMod && !isBc) return;
     }
     const prefix = String(cfg('cmdPrefix')||'!').trim();
     if (!msg.startsWith(prefix)) return;
     const parts = msg.slice(prefix.length).trim().split(/\s+/);
-    const cmd=parts[0].toLowerCase(), arg=parts[1]||'';
-    const al={
-      start:      String(cfg('cmdStart')     ||DEFAULT.cmdStart).toLowerCase(),
-      stop:       String(cfg('cmdStop')      ||DEFAULT.cmdStop).toLowerCase(),
-      reset:      String(cfg('cmdReset')     ||DEFAULT.cmdReset).toLowerCase(),
-      settime:    String(cfg('cmdSetTime')   ||DEFAULT.cmdSetTime).toLowerCase(),
-      addtime:    String(cfg('cmdAddTime')   ||DEFAULT.cmdAddTime).toLowerCase(),
-      removetime: String(cfg('cmdRemoveTime')||DEFAULT.cmdRemoveTime).toLowerCase(),
+    const cmd = parts[0].toLowerCase(), arg = parts[1] || '';
+    const al = {
+      start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
+      stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
+      reset:      String(cfg('cmdReset')      || DEFAULT.cmdReset).toLowerCase(),
+      settime:    String(cfg('cmdSetTime')    || DEFAULT.cmdSetTime).toLowerCase(),
+      addtime:    String(cfg('cmdAddTime')    || DEFAULT.cmdAddTime).toLowerCase(),
+      removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
     };
-    if (cmd===al.start)           { if(!running&&timeLeft>0){startTimer();storeSave();} return; }
-    if (cmd===al.stop)            { pauseTimer(); return; }
-    if (cmd===al.reset)           { pauseTimer(); timeLeft=safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
-    if (cmd===al.settime&&arg)    { const s=parseTimeField(arg); if(s>0){timeLeft=s;updateTimerDisplay();storeSave();if(!running)startTimer();} return; }
-    if (cmd===al.addtime&&arg)    { const s=parseTimeField(arg); if(s>0) addTime(s);    return; }
-    if (cmd===al.removetime&&arg) { const s=parseTimeField(arg); if(s>0) removeTime(s); return; }
+    if (cmd === al.start)           { if (!running && timeLeft > 0) { startTimer(); storeSave(); } return; }
+    if (cmd === al.stop)            { pauseTimer(); return; }
+    if (cmd === al.reset)           { pauseTimer(); timeLeft = safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
+    if (cmd === al.settime  && arg) { const s = parseTimeField(arg); if (s > 0) { timeLeft = s; updateTimerDisplay(); storeSave(); if (!running) startTimer(); } return; }
+    if (cmd === al.addtime  && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
+    if (cmd === al.removetime && arg) { const s = parseTimeField(arg); if (s > 0) removeTime(s); return; }
     return;
   }
 
   const data    = obj.detail.event;
-  const eventId = listener+'_'+(data._id||data.name||'')+'_'+(data.amount||'');
-  if (eventId===_lastEventId) return;
-  _lastEventId=eventId;
-  setTimeout(()=>{if(_lastEventId===eventId)_lastEventId=null;},3000);
+  const eventId = listener + '_' + (data._id||data.name||'') + '_' + (data.amount||'');
+  if (eventId === _lastEventId) return;
+  _lastEventId = eventId;
+  setTimeout(function() { if (_lastEventId === eventId) _lastEventId = null; }, 3000);
 
   // ===== SUB =====
   if (listener === 'subscriber-latest') {
@@ -726,48 +784,24 @@ window.addEventListener('onEventReceived', function(obj) {
     if (isGift) {
       if (!cfgBool('giftEnabled')) return;
       const gifter = data.gifter || data.sender || uname;
-      // PREFIX CORRECT : 'timePerGift' (sans T final)
       const secs   = tierSeconds('timePerGift', tierRaw);
       enqueueEvent({
-        type:       'gift',
-        name:       gifter,
-        months:     '+' + secsToLabel(secs),
-        topTier:    tLabel,
-        secsToAdd:  secs,
-        goalAdd:    1,
-        infoSecs:   secs,
-        gbarType:   'sub',
-        gbarAmount: 1,
+        type: 'gift', name: gifter, months: '+' + secsToLabel(secs), topTier: tLabel,
+        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
       });
-    } else if (safeInt(data.months,0) > 1 || data.streak) {
+    } else if (safeInt(data.months, 0) > 1 || data.streak) {
       if (!cfgBool('resubEnabled')) return;
-      // PREFIX CORRECT : 'timePerResub' (sans T final)
       const secs = tierSeconds('timePerResub', tierRaw);
       enqueueEvent({
-        type:       'resub',
-        name:       uname,
-        months:     'x' + months,
-        topTier:    tLabel,
-        secsToAdd:  secs,
-        goalAdd:    1,
-        infoSecs:   secs,
-        gbarType:   'sub',
-        gbarAmount: 1,
+        type: 'resub', name: uname, months: 'x' + months, topTier: tLabel,
+        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
       });
     } else {
       if (!cfgBool('subEnabled')) return;
-      // PREFIX CORRECT : 'timePerSub' (sans T final)
       const secs = tierSeconds('timePerSub', tierRaw);
       enqueueEvent({
-        type:       'sub',
-        name:       uname,
-        months:     'x' + months,
-        topTier:    tLabel,
-        secsToAdd:  secs,
-        goalAdd:    1,
-        infoSecs:   secs,
-        gbarType:   'sub',
-        gbarAmount: 1,
+        type: 'sub', name: uname, months: 'x' + months, topTier: tLabel,
+        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
       });
     }
     return;
@@ -781,15 +815,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const per    = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
     const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono) : 0;
     enqueueEvent({
-      type:       'dono',
-      name:       uname,
-      months:     amount > 0 ? amount + '€' : null,
-      topTier:    null,
-      secsToAdd:  secs,
-      goalAdd:    amount,
-      infoSecs:   secs,
-      gbarType:   'dono',
-      gbarAmount: amount,
+      type: 'dono', name: uname, months: amount > 0 ? amount + '€' : null, topTier: null,
+      secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'dono', gbarAmount: amount,
     });
     return;
   }
@@ -802,15 +829,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const per    = safeFloat(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
     const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits) : 0;
     enqueueEvent({
-      type:       'bits',
-      name:       uname,
-      months:     amount > 0 ? amount + ' bits' : null,
-      topTier:    null,
-      secsToAdd:  secs,
-      goalAdd:    amount,
-      infoSecs:   secs,
-      gbarType:   'bits',
-      gbarAmount: amount,
+      type: 'bits', name: uname, months: amount > 0 ? amount + ' bits' : null, topTier: null,
+      secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'bits', gbarAmount: amount,
     });
     return;
   }
@@ -821,15 +841,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname = data.displayName || data.name || 'Anonyme';
     const secs  = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
     enqueueEvent({
-      type:      'follow',
-      name:      uname,
-      months:    null,
-      topTier:   null,
-      secsToAdd: secs,
-      goalAdd:   0,
-      infoSecs:  secs,
-      gbarType:  'follow',
-      gbarAmount:1,
+      type: 'follow', name: uname, months: null, topTier: null,
+      secsToAdd: secs, goalAdd: 0, infoSecs: secs, gbarType: 'follow', gbarAmount: 1,
     });
     return;
   }
