@@ -105,48 +105,63 @@
   "glowColor":     { "type": "color",  "label": "🎨 Glow — couleur",              "value": "#e84118" },
   "glowOpacity":   { "type": "slider", "label": "🎨 Glow — intensité",            "value": 45, "min": 0, "max": 100, "steps": 1 },
 
-  "gbar1Enabled": { "type": "checkbox", "label": "📊 Barre 1 — Activer",  "value": false },
-  "gbar1Label":   { "type": "text",     "label": "📊 Barre 1 — Texte",    "value": "Objectif subs" },
-  "gbar1Type": {
-    "type": "dropdown", "label": "📊 Barre 1 — Type",
-    "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
-  },
-  "gbar1Target": { "type": "number", "label": "📊 Barre 1 — Objectif", "value": 100, "step": 1, "min": 1 },
+  "gbar1Enabled": { "type": "checkbox", "label": "📊 Barre 1 — Activer",         "value": false },
+  "gbar1Label":   { "type": "text",     "label": "📊 Barre 1 — Texte",           "value": "Objectif subs" },
+  "gbar1Type":    { "type": "dropdown", "label": "📊 Barre 1 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar1Target":  { "type": "number",   "label": "📊 Barre 1 — Objectif",       "value": 100,  "step": 1, "min": 1 },
+  "gbar1Color":   { "type": "color",    "label": "🎨 Barre 1 — Couleur avancement", "value": "#e84118" },
 
-  "gbar2Enabled": { "type": "checkbox", "label": "📊 Barre 2 — Activer",  "value": false },
-  "gbar2Label":   { "type": "text",     "label": "📊 Barre 2 — Texte",    "value": "Objectif tips" },
-  "gbar2Type": {
-    "type": "dropdown", "label": "📊 Barre 2 — Type",
-    "value": "dono",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
-  },
-  "gbar2Target": { "type": "number", "label": "📊 Barre 2 — Objectif", "value": 500, "step": 1, "min": 1 },
+  "gbar2Enabled": { "type": "checkbox", "label": "📊 Barre 2 — Activer",         "value": false },
+  "gbar2Label":   { "type": "text",     "label": "📊 Barre 2 — Texte",           "value": "Objectif tips" },
+  "gbar2Type":    { "type": "dropdown", "label": "📊 Barre 2 — Type",           "value": "dono", "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar2Target":  { "type": "number",   "label": "📊 Barre 2 — Objectif",       "value": 500,  "step": 1, "min": 1 },
+  "gbar2Color":   { "type": "color",    "label": "🎨 Barre 2 — Couleur avancement", "value": "#e84118" },
 
-  "gbar3Enabled": { "type": "checkbox", "label": "📊 Barre 3 — Activer",  "value": false },
-  "gbar3Label":   { "type": "text",     "label": "📊 Barre 3 — Texte",    "value": "Objectif bits" },
-  "gbar3Type": {
-    "type": "dropdown", "label": "📊 Barre 3 — Type",
-    "value": "bits",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
-  },
-  "gbar3Target": { "type": "number", "label": "📊 Barre 3 — Objectif", "value": 10000, "step": 1, "min": 1 },
+  "gbar3Enabled": { "type": "checkbox", "label": "📊 Barre 3 — Activer",         "value": false },
+  "gbar3Label":   { "type": "text",     "label": "📊 Barre 3 — Texte",           "value": "Objectif bits" },
+  "gbar3Type":    { "type": "dropdown", "label": "📊 Barre 3 — Type",           "value": "bits", "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar3Target":  { "type": "number",   "label": "📊 Barre 3 — Objectif",       "value": 10000, "step": 1, "min": 1 },
+  "gbar3Color":   { "type": "color",    "label": "🎨 Barre 3 — Couleur avancement", "value": "#e84118" },
 
-  "gbar4Enabled": { "type": "checkbox", "label": "📊 Barre 4 — Activer",  "value": false },
-  "gbar4Label":   { "type": "text",     "label": "📊 Barre 4 — Texte",    "value": "Objectif 4" },
-  "gbar4Type": {
-    "type": "dropdown", "label": "📊 Barre 4 — Type",
-    "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
-  },
-  "gbar4Target": { "type": "number", "label": "📊 Barre 4 — Objectif", "value": 200, "step": 1, "min": 1 },
+  "gbar4Enabled": { "type": "checkbox", "label": "📊 Barre 4 — Activer",         "value": false },
+  "gbar4Label":   { "type": "text",     "label": "📊 Barre 4 — Texte",           "value": "Objectif 4" },
+  "gbar4Type":    { "type": "dropdown", "label": "📊 Barre 4 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar4Target":  { "type": "number",   "label": "📊 Barre 4 — Objectif",       "value": 200,  "step": 1, "min": 1 },
+  "gbar4Color":   { "type": "color",    "label": "🎨 Barre 4 — Couleur avancement", "value": "#e84118" },
 
-  "gbar5Enabled": { "type": "checkbox", "label": "📊 Barre 5 — Activer",  "value": false },
-  "gbar5Label":   { "type": "text",     "label": "📊 Barre 5 — Texte",    "value": "Objectif 5" },
-  "gbar5Type": {
-    "type": "dropdown", "label": "📊 Barre 5 — Type",
-    "value": "sub",
-    "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" }
-  },
-  "gbar5Target": { "type": "number", "label": "📊 Barre 5 — Objectif", "value": 300, "step": 1, "min": 1 }
+  "gbar5Enabled": { "type": "checkbox", "label": "📊 Barre 5 — Activer",         "value": false },
+  "gbar5Label":   { "type": "text",     "label": "📊 Barre 5 — Texte",           "value": "Objectif 5" },
+  "gbar5Type":    { "type": "dropdown", "label": "📊 Barre 5 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar5Target":  { "type": "number",   "label": "📊 Barre 5 — Objectif",       "value": 300,  "step": 1, "min": 1 },
+  "gbar5Color":   { "type": "color",    "label": "🎨 Barre 5 — Couleur avancement", "value": "#e84118" },
+
+  "gbar6Enabled": { "type": "checkbox", "label": "📊 Barre 6 — Activer",         "value": false },
+  "gbar6Label":   { "type": "text",     "label": "📊 Barre 6 — Texte",           "value": "Objectif 6" },
+  "gbar6Type":    { "type": "dropdown", "label": "📊 Barre 6 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar6Target":  { "type": "number",   "label": "📊 Barre 6 — Objectif",       "value": 400,  "step": 1, "min": 1 },
+  "gbar6Color":   { "type": "color",    "label": "🎨 Barre 6 — Couleur avancement", "value": "#e84118" },
+
+  "gbar7Enabled": { "type": "checkbox", "label": "📊 Barre 7 — Activer",         "value": false },
+  "gbar7Label":   { "type": "text",     "label": "📊 Barre 7 — Texte",           "value": "Objectif 7" },
+  "gbar7Type":    { "type": "dropdown", "label": "📊 Barre 7 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar7Target":  { "type": "number",   "label": "📊 Barre 7 — Objectif",       "value": 500,  "step": 1, "min": 1 },
+  "gbar7Color":   { "type": "color",    "label": "🎨 Barre 7 — Couleur avancement", "value": "#e84118" },
+
+  "gbar8Enabled": { "type": "checkbox", "label": "📊 Barre 8 — Activer",         "value": false },
+  "gbar8Label":   { "type": "text",     "label": "📊 Barre 8 — Texte",           "value": "Objectif 8" },
+  "gbar8Type":    { "type": "dropdown", "label": "📊 Barre 8 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar8Target":  { "type": "number",   "label": "📊 Barre 8 — Objectif",       "value": 600,  "step": 1, "min": 1 },
+  "gbar8Color":   { "type": "color",    "label": "🎨 Barre 8 — Couleur avancement", "value": "#e84118" },
+
+  "gbar9Enabled": { "type": "checkbox", "label": "📊 Barre 9 — Activer",         "value": false },
+  "gbar9Label":   { "type": "text",     "label": "📊 Barre 9 — Texte",           "value": "Objectif 9" },
+  "gbar9Type":    { "type": "dropdown", "label": "📊 Barre 9 — Type",           "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar9Target":  { "type": "number",   "label": "📊 Barre 9 — Objectif",       "value": 700,  "step": 1, "min": 1 },
+  "gbar9Color":   { "type": "color",    "label": "🎨 Barre 9 — Couleur avancement", "value": "#e84118" },
+
+  "gbar10Enabled": { "type": "checkbox", "label": "📊 Barre 10 — Activer",        "value": false },
+  "gbar10Label":   { "type": "text",     "label": "📊 Barre 10 — Texte",          "value": "Objectif 10" },
+  "gbar10Type":    { "type": "dropdown", "label": "📊 Barre 10 — Type",          "value": "sub",  "options": { "sub": "Subs (+ resubs + gifts)", "dono": "Dons (€)", "bits": "Bits", "follow": "Follows" } },
+  "gbar10Target":  { "type": "number",   "label": "📊 Barre 10 — Objectif",      "value": 800,  "step": 1, "min": 1 },
+  "gbar10Color":   { "type": "color",    "label": "🎨 Barre 10 — Couleur avancement", "value": "#e84118" }
 }

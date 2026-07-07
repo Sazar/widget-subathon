@@ -1,9 +1,9 @@
 /* =============================================
-   SUBATHON WIDGET v3.6
-   - autoStart immédiat sans attendre storeLoad
-   - Timer garde son temps sur changement params
-   - 5 barres de goal configurables
-   - Barres : ajout du type Follow
+   SUBATHON WIDGET v3.7
+   - 10 barres de goal configurables
+   - Couleur personnalisable par barre
+   - Cascade : max 3 barres visibles, la suivante
+     se revelee quand la precedente est complete
    ============================================= */
 
 const DEFAULT = {
@@ -61,12 +61,17 @@ const DEFAULT = {
   infoText:       '#ffffff',
   glowColor:      '#e84118',
   glowOpacity:    45,
-  // Barres de goal
-  gbar1Enabled: false, gbar1Label: 'Objectif subs',  gbar1Type: 'sub',  gbar1Target: 100,
-  gbar2Enabled: false, gbar2Label: 'Objectif tips',  gbar2Type: 'dono', gbar2Target: 500,
-  gbar3Enabled: false, gbar3Label: 'Objectif bits',  gbar3Type: 'bits', gbar3Target: 10000,
-  gbar4Enabled: false, gbar4Label: 'Objectif 4',     gbar4Type: 'sub',  gbar4Target: 200,
-  gbar5Enabled: false, gbar5Label: 'Objectif 5',     gbar5Type: 'sub',  gbar5Target: 300,
+  // Barres
+  gbar1Enabled:  false, gbar1Label:  'Objectif subs',  gbar1Type:  'sub',  gbar1Target:  100,  gbar1Color:  '#e84118',
+  gbar2Enabled:  false, gbar2Label:  'Objectif tips',  gbar2Type:  'dono', gbar2Target:  500,  gbar2Color:  '#e84118',
+  gbar3Enabled:  false, gbar3Label:  'Objectif bits',  gbar3Type:  'bits', gbar3Target:  10000, gbar3Color: '#e84118',
+  gbar4Enabled:  false, gbar4Label:  'Objectif 4',     gbar4Type:  'sub',  gbar4Target:  200,  gbar4Color:  '#e84118',
+  gbar5Enabled:  false, gbar5Label:  'Objectif 5',     gbar5Type:  'sub',  gbar5Target:  300,  gbar5Color:  '#e84118',
+  gbar6Enabled:  false, gbar6Label:  'Objectif 6',     gbar6Type:  'sub',  gbar6Target:  400,  gbar6Color:  '#e84118',
+  gbar7Enabled:  false, gbar7Label:  'Objectif 7',     gbar7Type:  'sub',  gbar7Target:  500,  gbar7Color:  '#e84118',
+  gbar8Enabled:  false, gbar8Label:  'Objectif 8',     gbar8Type:  'sub',  gbar8Target:  600,  gbar8Color:  '#e84118',
+  gbar9Enabled:  false, gbar9Label:  'Objectif 9',     gbar9Type:  'sub',  gbar9Target:  700,  gbar9Color:  '#e84118',
+  gbar10Enabled: false, gbar10Label: 'Objectif 10',    gbar10Type: 'sub',  gbar10Target: 800,  gbar10Color: '#e84118',
 };
 
 const GOOGLE_FONTS = {
@@ -88,6 +93,8 @@ const SK_STAMP = 'sa_stamp';
 const SK_GBAR  = (n) => 'sa_gbar' + n;
 
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
+const MAX_BARS = 10;
+const MAX_VISIBLE = 3; // Nombre max de barres visibles simultanement
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -193,7 +200,13 @@ let goalTarget    = 1;
 let timerInterval = null;
 let safeCurrent   = 3600;
 
-const gbarCurrent = { 1:0, 2:0, 3:0, 4:0, 5:0 };
+const gbarCurrent = {};
+for (let i = 1; i <= MAX_BARS; i++) gbarCurrent[i] = 0;
+
+// Liste ordonnee des barres activees (indices 1-10)
+let gbarOrder = [];
+// Index dans gbarOrder de la premiere barre visible (fenetre glissante)
+let gbarWindowStart = 0;
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -209,32 +222,127 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 function gbarEl(n, id) { return document.getElementById('gbar'+n+'-'+id); }
 
-// ===== BARRES DE GOAL =====
-function initGbars() {
-  for (let n = 1; n <= 5; n++) {
-    const enabled = cfgBool('gbar'+n+'Enabled');
-    const wrap    = document.getElementById('gbar'+n);
+// ===== GESTION COULEUR PAR BARRE =====
+function applyGbarColor(n) {
+  const fill  = gbarEl(n, 'fill');
+  if (!fill) return;
+  const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
+  fill.style.background = color;
+  // Glow tinte avec la couleur de la barre
+  fill.style.boxShadow  = `0 0 8px ${color}88`;
+}
+
+// ===== CASCADE : fenetre glissante de MAX_VISIBLE barres =====
+
+/**
+ * Recalcule quelles barres doivent etre visibles.
+ * Regles :
+ *  - On affiche gbarOrder[gbarWindowStart] a gbarOrder[gbarWindowStart + MAX_VISIBLE - 1]
+ *  - Quand la barre en tete de fenetre est complete, on avance la fenetre de 1
+ *    => la barre completee reste visible (pour feedback), puis disparait avec slide-out
+ *    => la nouvelle barre suivante apparait avec slide-in
+ */
+function refreshCascade(animate) {
+  if (!gbarOrder.length) return;
+
+  for (let i = 0; i < gbarOrder.length; i++) {
+    const n    = gbarOrder[i];
+    const wrap = document.getElementById('gbar' + n);
     if (!wrap) continue;
-    wrap.style.display = enabled ? '' : 'none';
-    if (!enabled) continue;
+
+    const inWindow = (i >= gbarWindowStart && i < gbarWindowStart + MAX_VISIBLE);
+
+    if (inWindow) {
+      if (wrap.style.display === 'none') {
+        wrap.style.display = '';
+        if (animate) {
+          wrap.classList.remove('slide-in');
+          void wrap.offsetWidth;
+          wrap.classList.add('slide-in');
+        }
+      }
+    } else {
+      wrap.style.display = 'none';
+      wrap.classList.remove('slide-in');
+    }
+  }
+}
+
+/**
+ * Verifie si la barre en tete de fenetre est complete.
+ * Si oui, avance la fenetre et reveille la prochaine barre.
+ */
+function checkCascadeAdvance() {
+  if (!gbarOrder.length) return;
+  // La barre en tete = premiere de la fenetre courante
+  const headIdx = gbarWindowStart;
+  if (headIdx >= gbarOrder.length) return;
+  const headN   = gbarOrder[headIdx];
+  const target  = safeFloat(cfg('gbar'+headN+'Target'), 100);
+  const cur     = gbarCurrent[headN];
+
+  if (cur >= target) {
+    // La barre de tete est complete => avancer la fenetre
+    gbarWindowStart = Math.min(gbarWindowStart + 1, gbarOrder.length);
+    refreshCascade(true);
+  }
+}
+
+// ===== INIT DES BARRES =====
+function initGbars() {
+  // Construit la liste ordonnee des barres activees
+  gbarOrder = [];
+  gbarWindowStart = 0;
+
+  for (let n = 1; n <= MAX_BARS; n++) {
+    // Masquer toutes les barres au depart
+    const wrap = document.getElementById('gbar' + n);
+    if (wrap) wrap.style.display = 'none';
+
+    if (!cfgBool('gbar'+n+'Enabled')) continue;
+
+    gbarOrder.push(n);
 
     const label  = String(cfg('gbar'+n+'Label') || 'Objectif '+n);
     const target = safeFloat(cfg('gbar'+n+'Target'), 100);
 
     gbarEl(n,'label').textContent = label;
     gbarEl(n,'tgt').textContent   = target;
+    applyGbarColor(n);
 
-    storeLoadGbar(n, function(saved) {
-      const cur = (saved !== null && saved >= 0) ? saved : 0;
-      gbarCurrent[n] = cur;
-      updateGbar(n);
-    });
+    // Restaure depuis le store
+    ;(function(idx) {
+      storeLoadGbar(idx, function(saved) {
+        gbarCurrent[idx] = (saved !== null && saved >= 0) ? saved : 0;
+        updateGbar(idx);
+        // Une fois tous les stores lus, recalcule la fenetre
+        // On le fait apres un court delai pour s'assurer que tous les stores sont charges
+      });
+    })(n);
   }
+
+  // Delai pour laisser les stores se charger avant d'afficher la fenetre
+  setTimeout(function() {
+    // Recompute window start : avancer tant que la barre de tete est deja complete
+    gbarWindowStart = 0;
+    for (let i = 0; i < gbarOrder.length; i++) {
+      const n      = gbarOrder[i];
+      const target = safeFloat(cfg('gbar'+n+'Target'), 100);
+      if (gbarCurrent[n] >= target && i < gbarOrder.length - MAX_VISIBLE) {
+        gbarWindowStart = i + 1;
+      } else {
+        break;
+      }
+    }
+    // S'assurer que la fenetre ne depasse pas
+    gbarWindowStart = Math.min(gbarWindowStart, Math.max(0, gbarOrder.length - MAX_VISIBLE));
+    refreshCascade(false);
+  }, 800);
 }
 
 function updateGbar(n) {
-  const wrap   = document.getElementById('gbar'+n);
-  if (!wrap || wrap.style.display === 'none') return;
+  const wrap = document.getElementById('gbar'+n);
+  if (!wrap) return;
   const target = safeFloat(cfg('gbar'+n+'Target'), 100);
   const cur    = gbarCurrent[n];
   const pct    = Math.min(100, (cur / target) * 100);
@@ -245,20 +353,20 @@ function updateGbar(n) {
 
   if (pct >= 100) {
     fill.classList.add('complete');
+    // Verifier si on doit avancer la cascade
+    setTimeout(checkCascadeAdvance, 700);
   } else {
     fill.classList.remove('complete');
   }
 }
 
 function addToGbar(type, amount) {
-  for (let n = 1; n <= 5; n++) {
+  for (let n = 1; n <= MAX_BARS; n++) {
     if (!cfgBool('gbar'+n+'Enabled')) continue;
     const btype = String(cfg('gbar'+n+'Type') || 'sub');
     if (btype !== type) continue;
-    gbarCurrent[n] = Math.min(
-      safeFloat(cfg('gbar'+n+'Target'), 100),
-      gbarCurrent[n] + amount
-    );
+    const target = safeFloat(cfg('gbar'+n+'Target'), 100);
+    gbarCurrent[n] = Math.min(target, gbarCurrent[n] + amount);
     updateGbar(n);
     storeSaveGbar(n, gbarCurrent[n]);
   }
@@ -459,7 +567,7 @@ function showAlert(type,name,bottomExtra,topTier,flash=true){
 }
 
 /* =============================================
-   INIT v3.6
+   INIT v3.7
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -492,9 +600,9 @@ function init(fd) {
 
   const now = Date.now();
   storeLoad(function(savedTime, savedRun, savedInit, savedStamp) {
-    const elapsed      = (savedStamp !== null) ? (now - savedStamp) : Infinity;
-    const isRecent     = elapsed < RELOAD_WINDOW_MS;
-    const hasSave      = savedTime !== null && savedTime >= 0;
+    const elapsed       = (savedStamp !== null) ? (now - savedStamp) : Infinity;
+    const isRecent      = elapsed < RELOAD_WINDOW_MS;
+    const hasSave       = savedTime !== null && savedTime >= 0;
     const initUnchanged = hasSave && savedInit !== null && savedInit === safeCurrent;
 
     if (isRecent && hasSave && initUnchanged) {
@@ -570,49 +678,4 @@ window.addEventListener('onEventReceived', function(obj) {
     const isGift  = !!(data.gifted||data.isgift);
     const tierRaw = data.tier||1000;
     const uname   = data.displayName||data.name||'Anonyme';
-    const tier    = tierLabel(tierRaw);
-    const totalMonths = isGift?0:safeInt(data.amount,0);
-    const isResub = !isGift&&totalMonths>1;
-    let secsToAdd=0,type='sub',bottomExtra=totalMonths>=1?'x'+totalMonths:null,goalAdd=null;
-    if (isGift) {
-      if (!cfgBool('giftEnabled')) return;
-      type='gift';
-      const count=safeInt(data.amount,1),t=safeInt(tierRaw,1000);
-      const key=t>=3000?'timePerGiftT3':t>=2000?'timePerGiftT2':'timePerGiftT1';
-      secsToAdd=count*safeInt(cfg(key),DEFAULT[key]);
-      bottomExtra='x'+count;
-      if (cfg('goalType')==='sub') goalAdd=count;
-    } else if (isResub) {
-      if (!cfgBool('resubEnabled')) return;
-      type='resub'; secsToAdd=tierSeconds('timePerResub',tierRaw);
-      if (cfg('goalType')==='sub') goalAdd=1;
-    } else {
-      if (!cfgBool('subEnabled')) return;
-      secsToAdd=tierSeconds('timePerSub',tierRaw);
-      if (cfg('goalType')==='sub') goalAdd=1;
-    }
-    const gbarAmount = isGift ? safeInt(data.amount,1) : 1;
-    enqueueEvent({type,name:uname,bottomExtra,topTier:tier,secsToAdd,goalAdd,infoSecs:secsToAdd,gbarType:'sub',gbarAmount});
-  }
-
-  if (listener==='tip-latest') {
-    if (!cfgBool('donoEnabled')) return;
-    const amount=safeFloat(data.amount,0);
-    const secsToAdd=Math.floor(amount/safeFloat(cfg('timePerDonoPer'),DEFAULT.timePerDonoPer))*safeInt(cfg('timePerDono'),DEFAULT.timePerDono);
-    enqueueEvent({type:'dono',name:data.username||'Anonyme',bottomExtra:amount+'€',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='dono'?amount:null,infoSecs:secsToAdd,gbarType:'dono',gbarAmount:amount});
-  }
-
-  if (listener==='cheer-latest') {
-    if (!cfgBool('bitsEnabled')) return;
-    const bits=safeInt(data.amount,0);
-    const secsToAdd=Math.floor(bits/safeInt(cfg('timePerBitsPer'),DEFAULT.timePerBitsPer))*safeInt(cfg('timePerBits'),DEFAULT.timePerBits);
-    enqueueEvent({type:'bits',name:data.displayName||data.name||'Anonyme',bottomExtra:bits+' bits',topTier:null,secsToAdd,goalAdd:cfg('goalType')==='bits'?bits:null,infoSecs:secsToAdd,gbarType:'bits',gbarAmount:bits});
-  }
-
-  if (listener==='follower-latest') {
-    if (!cfgBool('followEnabled')) return;
-    const secsToAdd=safeInt(cfg('timePerFollow'),DEFAULT.timePerFollow);
-    // Follow compte dans les barres de type 'follow' (1 par follow)
-    enqueueEvent({type:'follow',name:data.displayName||data.name||'Anonyme',bottomExtra:null,topTier:null,secsToAdd,goalAdd:null,infoSecs:secsToAdd,gbarType:'follow',gbarAmount:1});
-  }
-});
+    
