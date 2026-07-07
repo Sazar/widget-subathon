@@ -7,7 +7,7 @@
      · Badge doré centré en haut de l'alert box quand actif
      · Lié à cmdEnabled : si les commandes sont désactivées, !x2on/!x2off ne fonctionnent pas
      · Pas de préfixe dans le texte de l'alerte
-   - Info box : +temps visible uniquement lors d'un event (hors rotation)
+   - Info box : +temps visible pendant 6s, rotation stoppée puis redémarrée proprement
    - Alert box rotation : 'Nouveau' -> 'Dernier' lors du rappel cyclique
    ============================================= */
 
@@ -528,8 +528,14 @@ function startIdleCycle() {
 }
 
 let activeSlot = elSlotA, inactiveSlot = elSlotB;
-let flipLocked = false, rotationLocked = false, rotationIndex = 0;
+let flipLocked = false, rotationIndex = 0;
 let rotationInterval = null;
+/* infoBoxPending : si un 2e event arrive pendant l'affichage du +temps,
+   on stocke les secondes pour relancer showInfoBox dès la fin du délai courant */
+let infoBoxPending  = null;
+let infoBoxTimeout  = null;
+
+const INFO_BOX_HOLD_MS = 6000; /* durée d'affichage du +temps */
 
 function formatTimeLabel(s) {
   if (s < 60)   return s + 's';
@@ -567,29 +573,58 @@ function flipTo(text, animate) {
     flipLocked = false;
   }, 320);
 }
-function rotationTick() {
-  if (rotationLocked) return;
-  const slides = buildRotationSlides();
-  rotationIndex = rotationIndex % slides.length;
-  flipTo(slides[rotationIndex], true);
-  rotationIndex = (rotationIndex + 1) % slides.length;
+
+/* stopRotation / resumeRotation : pause complète de l'intervalle */
+function stopRotation() {
+  if (rotationInterval) { clearInterval(rotationInterval); rotationInterval = null; }
 }
-function startRotation() {
-  if (rotationInterval) clearInterval(rotationInterval);
-  rotationIndex = 0; rotationLocked = false;
-  const slides = buildRotationSlides();
-  flipTo(slides[0], false); rotationIndex = 1;
-  rotationInterval = setInterval(rotationTick, 5000);
+function resumeRotation() {
+  stopRotation();
+  /* on attend 5s avant le premier tick pour ne pas écraser immédiatement */
+  rotationInterval = setInterval(function() {
+    const slides = buildRotationSlides();
+    rotationIndex = rotationIndex % slides.length;
+    flipTo(slides[rotationIndex], true);
+    rotationIndex = (rotationIndex + 1) % slides.length;
+  }, 5000);
 }
 
+function startRotation() {
+  stopRotation();
+  rotationIndex = 0;
+  const slides = buildRotationSlides();
+  flipTo(slides[0], false); rotationIndex = 1;
+  resumeRotation();
+}
+
+/* =============================================
+   INFO BOX — affiche +temps et gèle la rotation
+   pendant INFO_BOX_HOLD_MS, puis reprend.
+   Si un nouvel event arrive entre-temps, on
+   repart pour un nouveau cycle complet.
+   ============================================= */
 function showInfoBox(seconds) {
-  rotationLocked = true;
+  /* annuler un éventuel timer en cours */
+  if (infoBoxTimeout) { clearTimeout(infoBoxTimeout); infoBoxTimeout = null; }
+
+  /* stopper la rotation pour toute la durée */
+  stopRotation();
+
   flipTo('+' + formatTimeLabel(seconds), true);
   elInfoBox.classList.remove('pop'); void elInfoBox.offsetWidth; elInfoBox.classList.add('pop');
-  setTimeout(function() {
-    rotationLocked = false;
-    rotationTick();
-  }, 6000);
+
+  infoBoxTimeout = setTimeout(function() {
+    infoBoxTimeout = null;
+    /* si un 2e event est arrivé pendant l'affichage, on l'enchaîne */
+    if (infoBoxPending !== null) {
+      const pending = infoBoxPending;
+      infoBoxPending = null;
+      showInfoBox(pending);
+      return;
+    }
+    /* sinon on reprend la rotation normalement */
+    resumeRotation();
+  }, INFO_BOX_HOLD_MS);
 }
 
 function loadFont(fontName) {
