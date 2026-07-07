@@ -8,6 +8,7 @@
      · Lié à cmdEnabled : si les commandes sont désactivées, !x2on/!x2off ne fonctionnent pas
      · Pas de préfixe dans le texte de l'alerte
    - Info box : +temps visible uniquement lors d'un event (hors rotation)
+   - Alert box rotation : 'Nouveau' -> 'Dernier' lors du rappel cyclique
    ============================================= */
 
 const DEFAULT = {
@@ -484,7 +485,7 @@ function fireEvent(payload) {
   if (goalAdd)                addGoal(goalAdd);
   if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
   showInfoBox(infoSecs || 0);
-  showAlert(type, name, months, topTier, true);
+  showAlert(type, name, months, topTier, true, false);
   lastEventState = {type: type, name: name, months: months, topTier: topTier};
   startIdleCycle();
 }
@@ -519,7 +520,8 @@ function startIdleCycle() {
       if (cycleShowIdle) setIdle();
       else {
         const s = lastEventState;
-        showAlert(s.type, s.name, s.months, s.topTier, false);
+        /* isRepeat = true : affiche 'Dernier' au lieu de 'Nouveau' */
+        showAlert(s.type, s.name, s.months, s.topTier, false, true);
       }
     }, CYCLE_DELAY);
   }, IDLE_DELAY);
@@ -536,13 +538,6 @@ function formatTimeLabel(s) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
-/* =============================================
-   ROTATION INFO BOX
-   Affiche uniquement T1 / T2 / T3 / Prime.
-   Le +temps du dernier event est affiché
-   ponctuellement via showInfoBox() et n'entre
-   pas dans la rotation automatique.
-   ============================================= */
 function buildRotationSlides() {
   return [
     'T1 +'   + formatTimeLabel(safeInt(cfg('timePerSubT1'),    DEFAULT.timePerSubT1)),
@@ -587,19 +582,12 @@ function startRotation() {
   rotationInterval = setInterval(rotationTick, 5000);
 }
 
-/* =============================================
-   showInfoBox
-   Affiche le +temps lors d'un event pendant 6s,
-   puis reprend la rotation T1/T2/T3/Prime.
-   Le +temps n'est PAS injecté dans la rotation.
-   ============================================= */
 function showInfoBox(seconds) {
   rotationLocked = true;
   flipTo('+' + formatTimeLabel(seconds), true);
   elInfoBox.classList.remove('pop'); void elInfoBox.offsetWidth; elInfoBox.classList.add('pop');
   setTimeout(function() {
     rotationLocked = false;
-    // Reprend proprement la rotation depuis le slide courant
     rotationTick();
   }, 6000);
 }
@@ -682,18 +670,27 @@ function updateTimerDisplay() {
 }
 function goalUnitLabel() { const t = cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
-function showAlert(type, name, months, topTier, flash) {
+/* =============================================
+   ALERT BOX
+   isRepeat = true  → rappel cyclique → 'Dernier'
+   isRepeat = false → nouvel event    → 'Nouveau'
+   ============================================= */
+function showAlert(type, name, months, topTier, flash, isRepeat) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
+  var prefix = isRepeat ? 'Dernier' : 'Nouveau';
   var topLine = '';
-  if      (type === 'sub')    topLine = 'Nouveau Sub'  + (topTier ? ' ' + topTier : '');
-  else if (type === 'resub')  topLine = 'Réabonnement' + (topTier ? ' ' + topTier : '');
-  else if (type === 'gift')   topLine = 'Gift Sub'      + (topTier ? ' ' + topTier : '');
-  else if (type === 'dono')   topLine = 'Nouveau Don';
-  else if (type === 'bits')   topLine = 'Cheers';
-  else if (type === 'follow') topLine = 'Nouveau Follow';
+  if      (type === 'sub')    topLine = prefix + ' Sub'    + (topTier ? ' ' + topTier : '');
+  else if (type === 'resub')  topLine = (isRepeat ? 'Dernier' : '') + ' Réabonnement' + (topTier ? ' ' + topTier : '');
+  else if (type === 'gift')   topLine = (isRepeat ? 'Dernier' : '') + ' Gift Sub'    + (topTier ? ' ' + topTier : '');
+  else if (type === 'dono')   topLine = prefix + ' Don';
+  else if (type === 'bits')   topLine = (isRepeat ? 'Derniers' : '') + ' Cheers';
+  else if (type === 'follow') topLine = prefix + ' Follow';
   else                        topLine = type;
+
+  /* Nettoyage des doubles espaces si le préfixe est vide */
+  topLine = topLine.replace(/^\s+/, '').replace(/  +/g, ' ');
 
   elAlertType.textContent = topLine;
 
