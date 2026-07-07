@@ -1,9 +1,11 @@
 /* =============================================
-   SUBATHON WIDGET v3.7
+   SUBATHON WIDGET v3.8
    - 10 barres de goal configurables
    - Couleur personnalisable par barre
    - Cascade : max 3 barres visibles, la suivante
      se revelee quand la precedente est complete
+   - Alert box : "Nouveau Sub T1" en haut
+                 "Pseudo - x12" en bas
    ============================================= */
 
 const DEFAULT = {
@@ -93,8 +95,8 @@ const SK_STAMP = 'sa_stamp';
 const SK_GBAR  = (n) => 'sa_gbar' + n;
 
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
-const MAX_BARS = 10;
-const MAX_VISIBLE = 3; // Nombre max de barres visibles simultanement
+const MAX_BARS    = 10;
+const MAX_VISIBLE = 3;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -203,9 +205,7 @@ let safeCurrent   = 3600;
 const gbarCurrent = {};
 for (let i = 1; i <= MAX_BARS; i++) gbarCurrent[i] = 0;
 
-// Liste ordonnee des barres activees (indices 1-10)
-let gbarOrder = [];
-// Index dans gbarOrder de la premiere barre visible (fenetre glissante)
+let gbarOrder       = [];
 let gbarWindowStart = 0;
 
 const elTimer     = document.getElementById('timerDisplay');
@@ -222,36 +222,23 @@ const elGoalUnit  = document.getElementById('goalUnit');
 
 function gbarEl(n, id) { return document.getElementById('gbar'+n+'-'+id); }
 
-// ===== GESTION COULEUR PAR BARRE =====
+// ===== COULEUR PAR BARRE =====
 function applyGbarColor(n) {
-  const fill  = gbarEl(n, 'fill');
+  const fill = gbarEl(n, 'fill');
   if (!fill) return;
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
   fill.style.background = color;
-  // Glow tinte avec la couleur de la barre
   fill.style.boxShadow  = `0 0 8px ${color}88`;
 }
 
-// ===== CASCADE : fenetre glissante de MAX_VISIBLE barres =====
-
-/**
- * Recalcule quelles barres doivent etre visibles.
- * Regles :
- *  - On affiche gbarOrder[gbarWindowStart] a gbarOrder[gbarWindowStart + MAX_VISIBLE - 1]
- *  - Quand la barre en tete de fenetre est complete, on avance la fenetre de 1
- *    => la barre completee reste visible (pour feedback), puis disparait avec slide-out
- *    => la nouvelle barre suivante apparait avec slide-in
- */
+// ===== CASCADE =====
 function refreshCascade(animate) {
   if (!gbarOrder.length) return;
-
   for (let i = 0; i < gbarOrder.length; i++) {
     const n    = gbarOrder[i];
     const wrap = document.getElementById('gbar' + n);
     if (!wrap) continue;
-
     const inWindow = (i >= gbarWindowStart && i < gbarWindowStart + MAX_VISIBLE);
-
     if (inWindow) {
       if (wrap.style.display === 'none') {
         wrap.style.display = '';
@@ -268,62 +255,42 @@ function refreshCascade(animate) {
   }
 }
 
-/**
- * Verifie si la barre en tete de fenetre est complete.
- * Si oui, avance la fenetre et reveille la prochaine barre.
- */
 function checkCascadeAdvance() {
   if (!gbarOrder.length) return;
-  // La barre en tete = premiere de la fenetre courante
   const headIdx = gbarWindowStart;
   if (headIdx >= gbarOrder.length) return;
-  const headN   = gbarOrder[headIdx];
-  const target  = safeFloat(cfg('gbar'+headN+'Target'), 100);
-  const cur     = gbarCurrent[headN];
-
-  if (cur >= target) {
-    // La barre de tete est complete => avancer la fenetre
+  const headN  = gbarOrder[headIdx];
+  const target = safeFloat(cfg('gbar'+headN+'Target'), 100);
+  if (gbarCurrent[headN] >= target) {
     gbarWindowStart = Math.min(gbarWindowStart + 1, gbarOrder.length);
     refreshCascade(true);
   }
 }
 
-// ===== INIT DES BARRES =====
+// ===== INIT BARRES =====
 function initGbars() {
-  // Construit la liste ordonnee des barres activees
-  gbarOrder = [];
+  gbarOrder       = [];
   gbarWindowStart = 0;
 
   for (let n = 1; n <= MAX_BARS; n++) {
-    // Masquer toutes les barres au depart
     const wrap = document.getElementById('gbar' + n);
     if (wrap) wrap.style.display = 'none';
-
     if (!cfgBool('gbar'+n+'Enabled')) continue;
 
     gbarOrder.push(n);
-
-    const label  = String(cfg('gbar'+n+'Label') || 'Objectif '+n);
-    const target = safeFloat(cfg('gbar'+n+'Target'), 100);
-
-    gbarEl(n,'label').textContent = label;
-    gbarEl(n,'tgt').textContent   = target;
+    gbarEl(n,'label').textContent = String(cfg('gbar'+n+'Label') || 'Objectif '+n);
+    gbarEl(n,'tgt').textContent   = safeFloat(cfg('gbar'+n+'Target'), 100);
     applyGbarColor(n);
 
-    // Restaure depuis le store
     ;(function(idx) {
       storeLoadGbar(idx, function(saved) {
         gbarCurrent[idx] = (saved !== null && saved >= 0) ? saved : 0;
         updateGbar(idx);
-        // Une fois tous les stores lus, recalcule la fenetre
-        // On le fait apres un court delai pour s'assurer que tous les stores sont charges
       });
     })(n);
   }
 
-  // Delai pour laisser les stores se charger avant d'afficher la fenetre
   setTimeout(function() {
-    // Recompute window start : avancer tant que la barre de tete est deja complete
     gbarWindowStart = 0;
     for (let i = 0; i < gbarOrder.length; i++) {
       const n      = gbarOrder[i];
@@ -334,7 +301,6 @@ function initGbars() {
         break;
       }
     }
-    // S'assurer que la fenetre ne depasse pas
     gbarWindowStart = Math.min(gbarWindowStart, Math.max(0, gbarOrder.length - MAX_VISIBLE));
     refreshCascade(false);
   }, 800);
@@ -346,14 +312,11 @@ function updateGbar(n) {
   const target = safeFloat(cfg('gbar'+n+'Target'), 100);
   const cur    = gbarCurrent[n];
   const pct    = Math.min(100, (cur / target) * 100);
-
   gbarEl(n,'cur').textContent = Number.isInteger(cur) ? cur : cur.toFixed(2);
   const fill = gbarEl(n,'fill');
   fill.style.width = pct + '%';
-
   if (pct >= 100) {
     fill.classList.add('complete');
-    // Verifier si on doit avancer la cascade
     setTimeout(checkCascadeAdvance, 700);
   } else {
     fill.classList.remove('complete');
@@ -385,13 +348,13 @@ function drainQueue() {
   queueBusy = true;
   setTimeout(()=>{ fireEvent(eventQueue.shift()); lastFired=Date.now(); queueBusy=false; drainQueue(); },wait);
 }
-function fireEvent({type,name,bottomExtra,topTier,secsToAdd,goalAdd,infoSecs,gbarType,gbarAmount}) {
-  if (secsToAdd)   addTime(secsToAdd);
-  if (goalAdd)     addGoal(goalAdd);
+function fireEvent({type,name,months,topTier,secsToAdd,goalAdd,infoSecs,gbarType,gbarAmount}) {
+  if (secsToAdd)              addTime(secsToAdd);
+  if (goalAdd)                addGoal(goalAdd);
   if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
   showInfoBox(infoSecs||0);
-  showAlert(type,name,bottomExtra,topTier,true);
-  lastEventState={type,name,bottomExtra,topTier};
+  showAlert(type, name, months, topTier, true);
+  lastEventState = {type, name, months, topTier};
   startIdleCycle();
 }
 
@@ -404,10 +367,10 @@ function buildIdleText() {
   return parts.length?parts.join('/'):'Subathon';
 }
 function setIdle() {
-  elAlertType.textContent=buildIdleText();
-  elAlertName.textContent='Pour ajouter du temps';
+  elAlertType.textContent = buildIdleText();
+  elAlertName.textContent = 'Pour ajouter du temps';
   elAlertName.classList.add('idle');
-  elAlertName.style.fontSize='';
+  elAlertName.style.fontSize = '';
 }
 const IDLE_DELAY=60000, CYCLE_DELAY=20000;
 let lastEventState=null,idleTimer=null,cycleInterval=null,cycleShowIdle=true;
@@ -423,7 +386,7 @@ function startIdleCycle(){
     cycleInterval=setInterval(()=>{
       cycleShowIdle=!cycleShowIdle;
       if(cycleShowIdle) setIdle();
-      else{const{type,name,bottomExtra,topTier}=lastEventState;showAlert(type,name,bottomExtra,topTier,false);}
+      else{const{type,name,months,topTier}=lastEventState;showAlert(type,name,months,topTier,false);}
     },CYCLE_DELAY);
   },IDLE_DELAY);
 }
@@ -508,10 +471,18 @@ function applyColors(){
   const boxBg =hexToRgba(cfg('boxBgColor'), safeInt(cfg('boxBgOpacity'), DEFAULT.boxBgOpacity));
   const goalBg=hexToRgba(cfg('goalBgColor'),safeInt(cfg('goalBgOpacity'),DEFAULT.goalBgOpacity));
   const glow  =hexToRgba(cfg('glowColor'),  safeInt(cfg('glowOpacity'),  DEFAULT.glowOpacity));
-  const map={'--widget-width':cfg('widgetWidth'),'--accent':cfg('accent'),'--text-accent':cfg('accent'),
-    '--timer-bg':cfg('timerBg'),'--timer-text':cfg('timerText'),
-    '--goal-bg':goalBg,'--goal-text':cfg('goalText'),
-    '--info-bg':cfg('infoBg'),'--info-text':cfg('infoText'),'--glow':glow};
+  const map={
+    '--widget-width':cfg('widgetWidth'),
+    '--accent':cfg('accent'),
+    '--text-accent':cfg('accent'),
+    '--timer-bg':cfg('timerBg'),
+    '--timer-text':cfg('timerText'),
+    '--goal-bg':goalBg,
+    '--goal-text':cfg('goalText'),
+    '--info-bg':cfg('infoBg'),
+    '--info-text':cfg('infoText'),
+    '--glow':glow
+  };
   for(const[k,v]of Object.entries(map)) if(v) root.style.setProperty(k,v);
   elAlertBox.style.background=boxBg;
 }
@@ -554,20 +525,53 @@ function updateTimerDisplay(){
 }
 function goalUnitLabel(){ const t=cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
-const TYPE_LABELS={dono:'Nouveau Don',bits:'Cheers',follow:'Nouveau Follow'};
-function showAlert(type,name,bottomExtra,topTier,flash=true){
+// ===== ALERT BOX =====
+// Ligne du haut  : type d'event + tier  ex: "Nouveau Sub T1" / "Réabonnement T2" / "Gift Sub Prime"
+// Ligne du bas   : pseudo + mois        ex: "Swerkx - x12"  (mois affiché seulement pour sub/resub)
+function showAlert(type, name, months, topTier, flash=true) {
   elAlertName.classList.remove('idle');
-  elAlertName.style.fontSize=elAlertName.dataset.eventSize||'42px';
-  if(topTier){
-    const base=type==='sub'?'Nouveau Sub':type==='resub'?'Réabonnement':type==='gift'?'Gift Sub':(TYPE_LABELS[type]||type);
-    elAlertType.textContent=base+' '+topTier;
-  } else { elAlertType.textContent=TYPE_LABELS[type]||type; }
-  elAlertName.textContent=bottomExtra?name+' - '+bottomExtra:name;
-  if(flash){elAlertBox.classList.remove('flash');void elAlertBox.offsetWidth;elAlertBox.classList.add('flash');}
+  elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
+
+  // --- Ligne du haut ---
+  let topLine = '';
+  if (type === 'sub') {
+    topLine = 'Nouveau Sub' + (topTier ? ' ' + topTier : '');
+  } else if (type === 'resub') {
+    topLine = 'Réabonnement' + (topTier ? ' ' + topTier : '');
+  } else if (type === 'gift') {
+    topLine = 'Gift Sub' + (topTier ? ' ' + topTier : '');
+  } else if (type === 'dono') {
+    topLine = 'Nouveau Don';
+  } else if (type === 'bits') {
+    topLine = 'Cheers';
+  } else if (type === 'follow') {
+    topLine = 'Nouveau Follow';
+  } else {
+    topLine = type;
+  }
+  elAlertType.textContent = topLine;
+
+  // --- Ligne du bas ---
+  // Pour sub / resub / gift : "Pseudo - x12" si on a le nombre de mois
+  // Pour don / bits / follow : juste le pseudo (ou pseudo + montant)
+  let bottomLine = name || 'Anonyme';
+  if (months && months > 0 && (type === 'sub' || type === 'resub' || type === 'gift')) {
+    bottomLine = name + ' - x' + months;
+  } else if (months && months > 0) {
+    // Pour don/bits on utilise months comme "extra" (montant)
+    bottomLine = name + ' - ' + months;
+  }
+  elAlertName.textContent = bottomLine;
+
+  if (flash) {
+    elAlertBox.classList.remove('flash');
+    void elAlertBox.offsetWidth;
+    elAlertBox.classList.add('flash');
+  }
 }
 
 /* =============================================
-   INIT v3.7
+   INIT v3.8
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -577,8 +581,8 @@ function init(fd) {
 
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
-  elGoalUnit.textContent = goalUnitLabel();
-  elGoalTgt.textContent  = goalTarget;
+  elGoalUnit.textContent  = goalUnitLabel();
+  elGoalTgt.textContent   = goalTarget;
   elGoalBox.style.display = cfgBool('goalEnabled') ? '' : 'none';
   setIdle();
   startRotation();
@@ -607,7 +611,7 @@ function init(fd) {
 
     if (isRecent && hasSave && initUnchanged) {
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      running = false;
+      running  = false;
       timeLeft = savedTime;
       updateTimerDisplay();
       if (savedTime <= 0) {
@@ -638,6 +642,7 @@ let _lastEventId = null;
 window.addEventListener('onEventReceived', function(obj) {
   const listener = obj.detail.listener;
 
+  // ===== COMMANDES CHAT =====
   if (listener === 'message') {
     if (!cfgBool('cmdEnabled')) return;
     const data = obj.detail.event.data;
@@ -659,9 +664,9 @@ window.addEventListener('onEventReceived', function(obj) {
       addtime:    String(cfg('cmdAddTime')   ||DEFAULT.cmdAddTime).toLowerCase(),
       removetime: String(cfg('cmdRemoveTime')||DEFAULT.cmdRemoveTime).toLowerCase(),
     };
-    if (cmd===al.start)      { if(!running&&timeLeft>0){startTimer();storeSave();} return; }
-    if (cmd===al.stop)       { pauseTimer(); return; }
-    if (cmd===al.reset)      { pauseTimer(); timeLeft=safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
+    if (cmd===al.start)           { if(!running&&timeLeft>0){startTimer();storeSave();} return; }
+    if (cmd===al.stop)            { pauseTimer(); return; }
+    if (cmd===al.reset)           { pauseTimer(); timeLeft=safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
     if (cmd===al.settime&&arg)    { const s=parseTimeField(arg); if(s>0){timeLeft=s;updateTimerDisplay();storeSave();if(!running)startTimer();} return; }
     if (cmd===al.addtime&&arg)    { const s=parseTimeField(arg); if(s>0) addTime(s);    return; }
     if (cmd===al.removetime&&arg) { const s=parseTimeField(arg); if(s>0) removeTime(s); return; }
@@ -674,8 +679,119 @@ window.addEventListener('onEventReceived', function(obj) {
   _lastEventId=eventId;
   setTimeout(()=>{if(_lastEventId===eventId)_lastEventId=null;},3000);
 
-  if (listener==='subscriber-latest') {
-    const isGift  = !!(data.gifted||data.isgift);
-    const tierRaw = data.tier||1000;
-    const uname   = data.displayName||data.name||'Anonyme';
-    
+  // ===== SUB =====
+  if (listener === 'subscriber-latest') {
+    const isGift  = !!(data.gifted || data.isgift);
+    const tierRaw = data.tier || 1000;
+    const uname   = data.displayName || data.name || 'Anonyme';
+    const months  = safeInt(data.months, 0) || safeInt(data.streak, 0) || 1;
+    const tLabel  = tierLabel(tierRaw);
+
+    if (isGift) {
+      if (!cfgBool('giftEnabled')) return;
+      const gifter = data.gifter || data.sender || uname;
+      const secs   = tierSeconds('timePerGiftT', tierRaw);
+      enqueueEvent({
+        type:       'gift',
+        name:       gifter,
+        months:     null,
+        topTier:    tLabel,
+        secsToAdd:  secs,
+        goalAdd:    1,
+        infoSecs:   secs,
+        gbarType:   'sub',
+        gbarAmount: 1,
+      });
+    } else if (safeInt(data.months,0) > 1 || data.streak) {
+      if (!cfgBool('resubEnabled')) return;
+      const secs = tierSeconds('timePerResubT', tierRaw);
+      enqueueEvent({
+        type:       'resub',
+        name:       uname,
+        months:     months,
+        topTier:    tLabel,
+        secsToAdd:  secs,
+        goalAdd:    1,
+        infoSecs:   secs,
+        gbarType:   'sub',
+        gbarAmount: 1,
+      });
+    } else {
+      if (!cfgBool('subEnabled')) return;
+      const secs = tierSeconds('timePerSubT', tierRaw);
+      enqueueEvent({
+        type:       'sub',
+        name:       uname,
+        months:     months,
+        topTier:    tLabel,
+        secsToAdd:  secs,
+        goalAdd:    1,
+        infoSecs:   secs,
+        gbarType:   'sub',
+        gbarAmount: 1,
+      });
+    }
+    return;
+  }
+
+  // ===== DON =====
+  if (listener === 'tip-latest') {
+    if (!cfgBool('donoEnabled')) return;
+    const uname  = data.displayName || data.name || 'Anonyme';
+    const amount = safeFloat(data.amount, 0);
+    const per    = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
+    const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono) : 0;
+    enqueueEvent({
+      type:       'dono',
+      name:       uname,
+      months:     amount > 0 ? amount + '€' : null,
+      topTier:    null,
+      secsToAdd:  secs,
+      goalAdd:    amount,
+      infoSecs:   secs,
+      gbarType:   'dono',
+      gbarAmount: amount,
+    });
+    return;
+  }
+
+  // ===== BITS =====
+  if (listener === 'cheer-latest') {
+    if (!cfgBool('bitsEnabled')) return;
+    const uname  = data.displayName || data.name || 'Anonyme';
+    const amount = safeInt(data.amount, 0);
+    const per    = safeFloat(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
+    const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits) : 0;
+    enqueueEvent({
+      type:       'bits',
+      name:       uname,
+      months:     amount > 0 ? amount + ' bits' : null,
+      topTier:    null,
+      secsToAdd:  secs,
+      goalAdd:    amount,
+      infoSecs:   secs,
+      gbarType:   'bits',
+      gbarAmount: amount,
+    });
+    return;
+  }
+
+  // ===== FOLLOW =====
+  if (listener === 'follower-latest') {
+    if (!cfgBool('followEnabled')) return;
+    const uname = data.displayName || data.name || 'Anonyme';
+    const secs  = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
+    enqueueEvent({
+      type:      'follow',
+      name:      uname,
+      months:    null,
+      topTier:   null,
+      secsToAdd: secs,
+      goalAdd:   0,
+      infoSecs:  secs,
+      gbarType:  'follow',
+      gbarAmount:1,
+    });
+    return;
+  }
+});
