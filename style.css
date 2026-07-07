@@ -1,7 +1,10 @@
 /* =============================================
-   SUBATHON WIDGET v4.1
+   SUBATHON WIDGET v4.2
    - Assombrissement réduit (.dimmed)
    - Transition adoucie sur .dimmed
+   - Effet burst quand une barre atteint son goal
+   - Icône X2 sur l'alert box
+   - Mode X2 : badge animé visible quand actif
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -106,6 +109,44 @@ body {
 @keyframes flashAnim {
   0%   { background: rgba(232,65,24,0.18); }
   100% { background: rgba(14,14,20,0.82); }
+}
+
+/* ===== BADGE X2 ===== */
+/*
+  Icône flottante en haut à droite de l'alert box.
+  Visible uniquement quand le mode X2 est actif (classe .visible).
+  Anime en boucle pour attirer l'attention sans être intrusif.
+*/
+.x2-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 42px;
+  height: 24px;
+  color: #ffd700;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7) rotate(6deg);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  filter: drop-shadow(0 0 6px rgba(255,215,0,0.7));
+}
+
+.x2-badge svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Quand X2 est actif */
+.x2-badge.visible {
+  opacity: 1;
+  transform: scale(1) rotate(6deg);
+  animation: x2Pulse 2s ease-in-out infinite;
+}
+
+@keyframes x2Pulse {
+  0%   { filter: drop-shadow(0 0 4px rgba(255,215,0,0.5));  transform: scale(1)    rotate(6deg); }
+  50%  { filter: drop-shadow(0 0 12px rgba(255,215,0,0.9)); transform: scale(1.1)  rotate(6deg); }
+  100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.5));  transform: scale(1)    rotate(6deg); }
 }
 
 /* ===== INFO BOX ===== */
@@ -251,13 +292,13 @@ body {
   font-family: var(--widget-font);
   overflow: hidden;
   animation: none;
+  position: relative;
   /* Transition adoucie pour éviter le conflit avec slide-out */
   transition: opacity 0.6s ease, filter 0.6s ease;
 }
 
 /* ===== ÉTAT ASSOMBRI (fix v4.1) =====
-   Valeurs réduites pour garder la barre lisible tout en signalant
-   qu'elle est complétée et en attente de la suivante.
+   Valeurs réduites pour garder la barre lisible.
    opacity : 0.35 -> 0.60
    saturate: 0.3  -> 0.7
    brightness: 0.6 -> 0.85
@@ -342,9 +383,7 @@ body {
               box-shadow 0.4s ease;
 }
 
-/* Barre complète : garde la couleur choisie + pulse glow en boucle
-   Utilise --bar-color setté inline par JS sur chaque .goal-bar-fill
-   pour que le glow suive la vraie couleur de chaque barre. */
+/* Barre complète : pulse glow en boucle */
 .goal-bar-fill.complete {
   animation: barFlash 1.4s ease-in-out infinite;
 }
@@ -353,4 +392,64 @@ body {
   0%   { box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color); filter: brightness(1);    }
   50%  { box-shadow: 0 0 18px var(--bar-color), 0 0 32px var(--bar-color); filter: brightness(1.45); }
   100% { box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color); filter: brightness(1);    }
+}
+
+/* ===== EFFET GOAL ATTEINT (v4.2) =====
+   Burst de particules via pseudo-éléments + flash border.
+   Déclenché par la classe .goal-reached sur .goal-bar-wrap.
+   Dure ~1.2s avant que l'assombrissement prenne le relais.
+============================================= */
+
+/* Flash de la bordure entière de la barre */
+.goal-bar-wrap.goal-reached {
+  animation: goalBurstWrap 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes goalBurstWrap {
+  0%   { box-shadow: 0 0 14px var(--glow), 0 0 0px  var(--bar-color); }
+  20%  { box-shadow: 0 0 0px  var(--glow), 0 0 28px var(--bar-color), 0 0 60px var(--bar-color); }
+  60%  { box-shadow: 0 0 0px  var(--glow), 0 0 14px var(--bar-color); }
+  100% { box-shadow: 0 0 14px var(--glow); }
+}
+
+/* Overlay flash blanc par-dessus la barre entière */
+.goal-bar-wrap.goal-reached::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-large);
+  background: var(--bar-color);
+  opacity: 0;
+  pointer-events: none;
+  animation: goalFlashOverlay 1.2s ease forwards;
+  z-index: 2;
+}
+
+@keyframes goalFlashOverlay {
+  0%   { opacity: 0; }
+  10%  { opacity: 0.22; }
+  40%  { opacity: 0.08; }
+  100% { opacity: 0; }
+}
+
+/* Label qui scale pour célébrer */
+.goal-bar-wrap.goal-reached .goal-bar-label {
+  animation: goalLabelPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes goalLabelPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* La fill pulse plus vite pendant le burst */
+.goal-bar-wrap.goal-reached .goal-bar-fill {
+  animation: goalFillBurst 0.6s ease-in-out 2, barFlash 1.4s ease-in-out 0.6s infinite;
+}
+
+@keyframes goalFillBurst {
+  0%   { filter: brightness(1); }
+  50%  { filter: brightness(2); }
+  100% { filter: brightness(1); }
 }

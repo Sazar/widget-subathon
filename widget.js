@@ -1,14 +1,13 @@
 /* =============================================
-   SUBATHON WIDGET v4.1
-   - FIX CRITIQUE: gift/resub tierSeconds prefix corrigé
-     'timePerGiftT' -> 'timePerGift' (évite le double T)
-   - Cascade barre : assombrie (configurable) puis slide-out avant d'afficher la suivante
-   NOUVEAUTÉS v4.1 :
-   - Assombrissement réduit (opacity 0.60, saturate 0.7, brightness 0.85)
-   - --bar-color setté inline sur chaque .goal-bar-fill (glow pulse correct par barre)
-   - CASCADE_HOLD_MS configurable via fieldData.cascadeHoldSecs (défaut 10s)
-   - Barres de goal générées dynamiquement en JS (HTML allégé)
-   - File d'attente d'alertes : QUEUE_GAP respecté entre chaque événement en rafale
+   SUBATHON WIDGET v4.2
+   NOUVEAUTÉS :
+   - Effet burst quand une barre de goal est atteinte (classe .goal-reached)
+   - Mode X2 : !x2on [durée] / !x2off
+     · Multiplie par 2 tous les temps ajoutés (subs, resubs, gifts, dons, bits, follows)
+     · Icône dorée animée sur l'alert box quand actif
+     · Durée optionnelle en argument (ex: !x2on 5:00 → 5 min)
+     · !x2off pour arrêter manuellement
+     · Timer automatique si durée fournie
    ============================================= */
 
 const DEFAULT = {
@@ -49,6 +48,9 @@ const DEFAULT = {
   cmdSetTime:     'settime',
   cmdAddTime:     'addtime',
   cmdRemoveTime:  'removetime',
+  /* Nouvelles commandes X2 — noms configurables */
+  cmdX2On:        'x2on',
+  cmdX2Off:       'x2off',
   cmdModOnly:     true,
   widgetFont:     'Rajdhani',
   alertFontSize:  42,
@@ -66,8 +68,6 @@ const DEFAULT = {
   infoText:       '#ffffff',
   glowColor:      '#e84118',
   glowOpacity:    45,
-  /* Durée (secondes) pendant laquelle la barre complétée reste assombrie
-     avant de laisser la place à la suivante. Configurable via fieldData. */
   cascadeHoldSecs: 10,
   gbar1Enabled:  false, gbar1Label:  'Objectif subs',  gbar1Type:  'sub',  gbar1Target:  100,  gbar1Color:  '#e84118',
   gbar2Enabled:  false, gbar2Label:  'Objectif tips',  gbar2Type:  'dono', gbar2Target:  500,  gbar2Color:  '#e84118',
@@ -97,15 +97,39 @@ const SK_TIME  = 'sa_time';
 const SK_RUN   = 'sa_run';
 const SK_INIT  = 'sa_init';
 const SK_STAMP = 'sa_stamp';
-const SK_GBAR  = (n) => 'sa_gbar' + n;
+const SK_GBAR  = function(n) { return 'sa_gbar' + n; };
 
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
 const MAX_BARS    = 10;
 const MAX_VISIBLE = 3;
 
-/* CASCADE_HOLD_MS : lu depuis fieldData.cascadeHoldSecs au moment de l'init.
-   Valeur par défaut : 10 000 ms (10s). */
 let CASCADE_HOLD_MS = 10000;
+
+/* =============================================
+   MODE X2
+   x2Active   : booléen — true si le mode est actif
+   x2Timer    : référence au setTimeout de fin automatique
+   setX2(bool): active/désactive le mode et met à jour l'icône
+   applyX2(s) : applique le multiplicateur ×2 si actif
+   ============================================= */
+let x2Active = false;
+let x2Timer  = null;
+
+function setX2(active) {
+  x2Active = active;
+  const badge = document.getElementById('x2Badge');
+  if (!badge) return;
+  if (active) {
+    badge.classList.add('visible');
+  } else {
+    badge.classList.remove('visible');
+    if (x2Timer) { clearTimeout(x2Timer); x2Timer = null; }
+  }
+}
+
+function applyX2(seconds) {
+  return x2Active ? seconds * 2 : seconds;
+}
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -174,7 +198,7 @@ function hexToRgba(hex, opacity) {
   const g = parseInt(h.substring(2,4),16);
   const b = parseInt(h.substring(4,6),16);
   const a = Math.round(Math.min(100,Math.max(0,opacity)))/100;
-  return `rgba(${r},${g},${b},${a})`;
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
 }
 function parseTimeField(val) {
   const s = String(val||'').trim();
@@ -187,13 +211,6 @@ function parseTimeField(val) {
   return isNaN(n)?0:n;
 }
 
-/*
-  tierSeconds — ATTENTION au préfixe :
-  - sub   : prefix = 'timePerSub'   -> cfg('timePerSubT1'), cfg('timePerSubPrime')
-  - resub : prefix = 'timePerResub' -> cfg('timePerResubT1'), cfg('timePerResubPrime')
-  - gift  : prefix = 'timePerGift'  -> cfg('timePerGiftT1'), cfg('timePerGiftPrime')
-  NE PAS inclure le 'T' final dans le préfixe, la fonction l'ajoute elle-même.
-*/
 function tierSeconds(prefix, tierRaw) {
   const t = String(tierRaw||'').toLowerCase();
   if (t === 'prime') return safeInt(cfg(prefix + 'Prime'), DEFAULT[prefix + 'Prime'] || 300);
@@ -251,8 +268,6 @@ const elGoalUnit  = document.getElementById('goalUnit');
 function gbarEl(n, id) { return document.getElementById('gbar'+n+'-'+id); }
 
 // ===== GÉNÉRATION DYNAMIQUE DES BARRES =====
-// Les 10 barres sont créées en JS plutôt qu'en dur dans le HTML.
-// Avantage : HTML allégé, structure centralisée, facile à modifier.
 function buildGbarDOM() {
   const container = document.getElementById('goalBarsContainer');
   if (!container) return;
@@ -262,37 +277,65 @@ function buildGbarDOM() {
     wrap.className = 'goal-bar-wrap';
     wrap.id = 'gbar' + n;
     wrap.style.display = 'none';
-    wrap.innerHTML = `
-      <div class="goal-bar-header">
-        <span class="goal-bar-label" id="gbar${n}-label">Objectif ${n}</span>
-        <span class="goal-bar-count">
-          <span id="gbar${n}-cur">0</span>
-          <span class="goal-bar-sep">/</span>
-          <span id="gbar${n}-tgt">100</span>
-        </span>
-      </div>
-      <div class="goal-bar-track">
-        <div class="goal-bar-fill" id="gbar${n}-fill"></div>
-      </div>
-    `;
+    wrap.innerHTML =
+      '<div class="goal-bar-header">' +
+        '<span class="goal-bar-label" id="gbar' + n + '-label">Objectif ' + n + '</span>' +
+        '<span class="goal-bar-count">' +
+          '<span id="gbar' + n + '-cur">0</span>' +
+          '<span class="goal-bar-sep">/</span>' +
+          '<span id="gbar' + n + '-tgt">100</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="goal-bar-track">' +
+        '<div class="goal-bar-fill" id="gbar' + n + '-fill"></div>' +
+      '</div>';
     container.appendChild(wrap);
   }
 }
 
 // ===== COULEUR PAR BARRE =====
-// --bar-color est setté inline sur chaque .goal-bar-fill
-// pour que @keyframes barFlash utilise la bonne couleur par barre.
 function applyGbarColor(n) {
   const fill = gbarEl(n, 'fill');
   if (!fill) return;
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
   fill.style.background = color;
-  fill.style.boxShadow  = `0 0 8px ${color}88`;
-  // Permet à @keyframes barFlash d'utiliser la bonne couleur pour chaque barre
+  fill.style.boxShadow  = '0 0 8px ' + color + '88';
   fill.style.setProperty('--bar-color', color);
 }
 
-// ===== CASCADE avec hold configurable =====
+/* =============================================
+   EFFET GOAL ATTEINT (v4.2)
+   Déclenché 1 fois par barre quand elle passe à 100%.
+   1. Classe .goal-reached ajoutée → burst CSS (1.2s)
+   2. --bar-color setté sur le wrap pour que le burst
+      suive la couleur de chaque barre
+   3. Après la durée du burst, la classe est retirée
+      et .dimmed prend le relais (via checkCascadeAdvance)
+   ============================================= */
+const gbarBurstDone = {};
+
+function triggerGoalReached(n) {
+  if (gbarBurstDone[n]) return;
+  gbarBurstDone[n] = true;
+
+  const wrap = document.getElementById('gbar' + n);
+  if (!wrap) return;
+
+  // Propage --bar-color au wrap pour que le burst box-shadow soit coloré
+  const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
+  wrap.style.setProperty('--bar-color', color);
+
+  wrap.classList.remove('goal-reached');
+  void wrap.offsetWidth; // reflow pour reset l'animation
+  wrap.classList.add('goal-reached');
+
+  // Retire la classe après 1.4s (légèrement > durée de goalBurstWrap)
+  setTimeout(function() {
+    wrap.classList.remove('goal-reached');
+  }, 1400);
+}
+
+// ===== CASCADE =====
 function refreshCascade(animate) {
   if (!gbarOrder.length) return;
   for (let i = 0; i < gbarOrder.length; i++) {
@@ -317,13 +360,6 @@ function refreshCascade(animate) {
   }
 }
 
-/*
-  Quand la barre de tête est pleine :
-  1. On ajoute la classe 'dimmed' (assombrissement léger)
-  2. On attend CASCADE_HOLD_MS (configurable via cascadeHoldSecs)
-  3. Slide-out de la barre sortante
-  4. Avance la fenêtre + slide-in de la suivante
-*/
 function checkCascadeAdvance() {
   if (gbarCascadeLocked) return;
   if (!gbarOrder.length) return;
@@ -338,7 +374,7 @@ function checkCascadeAdvance() {
   gbarCascadeLocked = true;
   const headWrap = document.getElementById('gbar' + headN);
 
-  // Étape 1 : assombrir
+  // Étape 1 : assombrir (après le burst)
   if (headWrap) headWrap.classList.add('dimmed');
 
   // Étape 2 : après CASCADE_HOLD_MS, slide-out puis slide-in suivante
@@ -366,8 +402,9 @@ function initGbars() {
   gbarCascadeLocked = false;
 
   for (let n = 1; n <= MAX_BARS; n++) {
+    gbarBurstDone[n] = false;
     const wrap = document.getElementById('gbar' + n);
-    if (wrap) { wrap.style.display = 'none'; wrap.classList.remove('dimmed','slide-out'); }
+    if (wrap) { wrap.style.display = 'none'; wrap.classList.remove('dimmed','slide-out','goal-reached'); }
     if (!cfgBool('gbar'+n+'Enabled')) continue;
 
     gbarOrder.push(n);
@@ -410,6 +447,8 @@ function updateGbar(n) {
   fill.style.width = pct + '%';
   if (pct >= 100) {
     fill.classList.add('complete');
+    // Effet burst au moment où la barre atteint 100%
+    triggerGoalReached(n);
     setTimeout(checkCascadeAdvance, 700);
   } else {
     fill.classList.remove('complete');
@@ -429,8 +468,6 @@ function addToGbar(type, amount) {
 }
 
 // ===== QUEUE D'ALERTES =====
-// Garantit un délai minimum (QUEUE_GAP) entre chaque alerte affichée,
-// évitant les chevauchements en cas de gift bomb ou de rafale d'événements.
 const QUEUE_GAP  = 2000;
 const eventQueue = [];
 let   queueBusy  = false;
@@ -448,7 +485,17 @@ function drainQueue() {
     drainQueue();
   }, wait);
 }
-function fireEvent({type, name, months, topTier, secsToAdd, goalAdd, infoSecs, gbarType, gbarAmount}) {
+function fireEvent(payload) {
+  const type = payload.type;
+  const name = payload.name;
+  const months = payload.months;
+  const topTier = payload.topTier;
+  const secsToAdd = payload.secsToAdd;
+  const goalAdd = payload.goalAdd;
+  const infoSecs = payload.infoSecs;
+  const gbarType = payload.gbarType;
+  const gbarAmount = payload.gbarAmount;
+
   if (secsToAdd)              addTime(secsToAdd);
   if (goalAdd)                addGoal(goalAdd);
   if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
@@ -486,7 +533,10 @@ function startIdleCycle() {
     cycleInterval = setInterval(function() {
       cycleShowIdle = !cycleShowIdle;
       if (cycleShowIdle) setIdle();
-      else { const {type,name,months,topTier} = lastEventState; showAlert(type,name,months,topTier,false); }
+      else {
+        const s = lastEventState;
+        showAlert(s.type, s.name, s.months, s.topTier, false);
+      }
     }, CYCLE_DELAY);
   }, IDLE_DELAY);
 }
@@ -518,7 +568,7 @@ function flipTo(text, animate) {
     activeSlot.classList.remove('active','flip-out','flip-in');
     inactiveSlot.classList.remove('flip-out','flip-in');
     inactiveSlot.classList.add('active');
-    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    var tmp = activeSlot; activeSlot = inactiveSlot; inactiveSlot = tmp;
     return;
   }
   flipLocked = true;
@@ -527,7 +577,7 @@ function flipTo(text, animate) {
   setTimeout(function() {
     activeSlot.classList.remove('flip-out');
     inactiveSlot.classList.remove('flip-in'); inactiveSlot.classList.add('active');
-    [activeSlot, inactiveSlot] = [inactiveSlot, activeSlot];
+    var tmp = activeSlot; activeSlot = inactiveSlot; inactiveSlot = tmp;
     flipLocked = false;
   }, 320);
 }
@@ -555,16 +605,16 @@ function showInfoBox(seconds) {
 function loadFont(fontName) {
   if (fontName === 'Rajdhani') return;
   const q = GOOGLE_FONTS[fontName]; if (!q) return;
-  if (document.querySelector(`link[data-font="${fontName}"]`)) return;
+  if (document.querySelector('link[data-font="' + fontName + '"]')) return;
   const l = document.createElement('link');
   l.rel = 'stylesheet'; l.setAttribute('data-font', fontName);
-  l.href = `https://fonts.googleapis.com/css2?family=${q}&display=swap`;
+  l.href = 'https://fonts.googleapis.com/css2?family=' + q + '&display=swap';
   document.head.appendChild(l);
 }
 function applyGlobalFont() {
   const f = String(cfg('widgetFont') || DEFAULT.widgetFont);
   loadFont(f);
-  document.documentElement.style.setProperty('--widget-font', `'${f}', 'Rajdhani', sans-serif`);
+  document.documentElement.style.setProperty('--widget-font', "'" + f + "', 'Rajdhani', sans-serif");
 }
 function applyAlertStyle() { elAlertName.dataset.eventSize = safeInt(cfg('alertFontSize'), DEFAULT.alertFontSize) + 'px'; }
 function applyTimerSize()   { elTimer.style.fontSize = safeInt(cfg('timerFontSize'), DEFAULT.timerFontSize) + 'px'; }
@@ -585,7 +635,7 @@ function applyColors() {
     '--info-text':    cfg('infoText'),
     '--glow':         glow,
   };
-  for (const [k, v] of Object.entries(map)) if (v) root.style.setProperty(k, v);
+  for (const k in map) { if (map[k]) root.style.setProperty(k, map[k]); }
   elAlertBox.style.background = boxBg;
 }
 
@@ -631,11 +681,11 @@ function updateTimerDisplay() {
 function goalUnitLabel() { const t = cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
 // ===== ALERT BOX =====
-function showAlert(type, name, months, topTier, flash=true) {
+function showAlert(type, name, months, topTier, flash) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
-  let topLine = '';
+  var topLine = '';
   if      (type === 'sub')    topLine = 'Nouveau Sub'  + (topTier ? ' ' + topTier : '');
   else if (type === 'resub')  topLine = 'Réabonnement' + (topTier ? ' ' + topTier : '');
   else if (type === 'gift')   topLine = 'Gift Sub'      + (topTier ? ' ' + topTier : '');
@@ -643,9 +693,13 @@ function showAlert(type, name, months, topTier, flash=true) {
   else if (type === 'bits')   topLine = 'Cheers';
   else if (type === 'follow') topLine = 'Nouveau Follow';
   else                        topLine = type;
+
+  // Indicateur X2 dans la ligne de type si actif
+  if (x2Active) topLine = '✕2 ' + topLine;
+
   elAlertType.textContent = topLine;
 
-  let bottomLine = name || 'Anonyme';
+  var bottomLine = name || 'Anonyme';
   if (months !== null && months !== undefined) {
     bottomLine = (name || 'Anonyme') + ' - ' + months;
   }
@@ -659,7 +713,7 @@ function showAlert(type, name, months, topTier, flash=true) {
 }
 
 /* =============================================
-   INIT v4.1
+   INIT
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -667,12 +721,9 @@ function init(fd) {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   running = false;
 
-  // Lecture de cascadeHoldSecs depuis fieldData (en secondes), converti en ms
   CASCADE_HOLD_MS = safeInt(cfg('cascadeHoldSecs'), DEFAULT.cascadeHoldSecs) * 1000;
 
-  // Génère les barres dynamiquement avant tout le reste
   buildGbarDOM();
-
   applyGlobalFont(); applyColors(); applyAlertStyle(); applyTimerSize();
   goalTarget = safeFloat(cfg('goalTarget'), DEFAULT.goalTarget);
   elGoalUnit.textContent  = goalUnitLabel();
@@ -743,13 +794,14 @@ window.addEventListener('onEventReceived', function(obj) {
     const msg  = String(data.text||'').trim();
     if (cfgBool('cmdModOnly')) {
       const isMod = !!(data.tags && data.tags.mod === '1');
-      const isBc  = (data.badges||[]).some(b => b.type === 'broadcaster');
+      const isBc  = (data.badges||[]).some(function(b) { return b.type === 'broadcaster'; });
       if (!isMod && !isBc) return;
     }
     const prefix = String(cfg('cmdPrefix')||'!').trim();
     if (!msg.startsWith(prefix)) return;
     const parts = msg.slice(prefix.length).trim().split(/\s+/);
-    const cmd = parts[0].toLowerCase(), arg = parts[1] || '';
+    const cmd = parts[0].toLowerCase();
+    const arg = parts[1] || '';
     const al = {
       start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
       stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
@@ -757,13 +809,48 @@ window.addEventListener('onEventReceived', function(obj) {
       settime:    String(cfg('cmdSetTime')    || DEFAULT.cmdSetTime).toLowerCase(),
       addtime:    String(cfg('cmdAddTime')    || DEFAULT.cmdAddTime).toLowerCase(),
       removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
+      /* Commandes X2 */
+      x2on:  String(cfg('cmdX2On')  || DEFAULT.cmdX2On).toLowerCase(),
+      x2off: String(cfg('cmdX2Off') || DEFAULT.cmdX2Off).toLowerCase(),
     };
-    if (cmd === al.start)           { if (!running && timeLeft > 0) { startTimer(); storeSave(); } return; }
-    if (cmd === al.stop)            { pauseTimer(); return; }
-    if (cmd === al.reset)           { pauseTimer(); timeLeft = safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
-    if (cmd === al.settime  && arg) { const s = parseTimeField(arg); if (s > 0) { timeLeft = s; updateTimerDisplay(); storeSave(); if (!running) startTimer(); } return; }
-    if (cmd === al.addtime  && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
+
+    if (cmd === al.start)  { if (!running && timeLeft > 0) { startTimer(); storeSave(); } return; }
+    if (cmd === al.stop)   { pauseTimer(); return; }
+    if (cmd === al.reset)  { pauseTimer(); timeLeft = safeCurrent; updateTimerDisplay(); storeSave(); startTimer(); return; }
+    if (cmd === al.settime    && arg) { const s = parseTimeField(arg); if (s > 0) { timeLeft = s; updateTimerDisplay(); storeSave(); if (!running) startTimer(); } return; }
+    if (cmd === al.addtime    && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
     if (cmd === al.removetime && arg) { const s = parseTimeField(arg); if (s > 0) removeTime(s); return; }
+
+    /* =============================================
+       COMMANDE !x2on [durée]
+       Exemples :
+         !x2on          → X2 activé sans fin automatique
+         !x2on 5:00     → X2 actif pendant 5 minutes
+         !x2on 1:00:00  → X2 actif pendant 1 heure
+         !x2on 300      → X2 actif pendant 300 secondes
+
+       COMMANDE !x2off
+         → Désactive le X2 immédiatement
+       ============================================= */
+    if (cmd === al.x2on) {
+      if (x2Timer) { clearTimeout(x2Timer); x2Timer = null; }
+      setX2(true);
+      if (arg) {
+        const duration = parseTimeField(arg);
+        if (duration > 0) {
+          x2Timer = setTimeout(function() {
+            setX2(false);
+          }, duration * 1000);
+        }
+      }
+      return;
+    }
+
+    if (cmd === al.x2off) {
+      setX2(false);
+      return;
+    }
+
     return;
   }
 
@@ -783,22 +870,25 @@ window.addEventListener('onEventReceived', function(obj) {
 
     if (isGift) {
       if (!cfgBool('giftEnabled')) return;
-      const gifter = data.gifter || data.sender || uname;
-      const secs   = tierSeconds('timePerGift', tierRaw);
+      const gifter  = data.gifter || data.sender || uname;
+      const rawSecs = tierSeconds('timePerGift', tierRaw);
+      const secs    = applyX2(rawSecs);
       enqueueEvent({
         type: 'gift', name: gifter, months: '+' + secsToLabel(secs), topTier: tLabel,
         secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
       });
     } else if (safeInt(data.months, 0) > 1 || data.streak) {
       if (!cfgBool('resubEnabled')) return;
-      const secs = tierSeconds('timePerResub', tierRaw);
+      const rawSecs = tierSeconds('timePerResub', tierRaw);
+      const secs    = applyX2(rawSecs);
       enqueueEvent({
         type: 'resub', name: uname, months: 'x' + months, topTier: tLabel,
         secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
       });
     } else {
       if (!cfgBool('subEnabled')) return;
-      const secs = tierSeconds('timePerSub', tierRaw);
+      const rawSecs = tierSeconds('timePerSub', tierRaw);
+      const secs    = applyX2(rawSecs);
       enqueueEvent({
         type: 'sub', name: uname, months: 'x' + months, topTier: tLabel,
         secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
@@ -813,7 +903,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname  = data.displayName || data.name || 'Anonyme';
     const amount = safeFloat(data.amount, 0);
     const per    = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
-    const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono) : 0;
+    const rawSecs = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono) : 0;
+    const secs    = applyX2(rawSecs);
     enqueueEvent({
       type: 'dono', name: uname, months: amount > 0 ? amount + '€' : null, topTier: null,
       secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'dono', gbarAmount: amount,
@@ -827,7 +918,8 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname  = data.displayName || data.name || 'Anonyme';
     const amount = safeInt(data.amount, 0);
     const per    = safeFloat(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
-    const secs   = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits) : 0;
+    const rawSecs = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits) : 0;
+    const secs    = applyX2(rawSecs);
     enqueueEvent({
       type: 'bits', name: uname, months: amount > 0 ? amount + ' bits' : null, topTier: null,
       secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'bits', gbarAmount: amount,
@@ -838,8 +930,9 @@ window.addEventListener('onEventReceived', function(obj) {
   // ===== FOLLOW =====
   if (listener === 'follower-latest') {
     if (!cfgBool('followEnabled')) return;
-    const uname = data.displayName || data.name || 'Anonyme';
-    const secs  = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
+    const uname   = data.displayName || data.name || 'Anonyme';
+    const rawSecs = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
+    const secs    = applyX2(rawSecs);
     enqueueEvent({
       type: 'follow', name: uname, months: null, topTier: null,
       secsToAdd: secs, goalAdd: 0, infoSecs: secs, gbarType: 'follow', gbarAmount: 1,
