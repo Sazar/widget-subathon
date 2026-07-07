@@ -1,11 +1,7 @@
 /* =============================================
-   SUBATHON WIDGET v3.8
-   - 10 barres de goal configurables
-   - Couleur personnalisable par barre
-   - Cascade : max 3 barres visibles, la suivante
-     se revelee quand la precedente est complete
-   - Alert box : "Nouveau Sub T1" en haut
-                 "Pseudo - x12" en bas
+   SUBATHON WIDGET v3.9
+   - Fix: gift sub affiche le temps ajouté (x mois)
+   - Fix: barre complète garde la couleur choisie + effet flash
    ============================================= */
 
 const DEFAULT = {
@@ -194,6 +190,16 @@ function tierLabel(tierRaw) {
   return 'T1';
 }
 
+// Convertit des secondes en label lisible ex: 300 -> "5min", 3600 -> "1h"
+function secsToLabel(s) {
+  if (!s || s <= 0) return '0s';
+  if (s < 60)   return s + 's';
+  if (s < 3600) return Math.round(s / 60) + 'min';
+  const h = Math.floor(s / 3600);
+  const m = Math.round((s % 3600) / 60);
+  return h + 'h' + (m ? m + 'min' : '');
+}
+
 // ===== ETAT =====
 let timeLeft      = -1;
 let running       = false;
@@ -227,8 +233,12 @@ function applyGbarColor(n) {
   const fill = gbarEl(n, 'fill');
   if (!fill) return;
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
+  // Stocke la couleur dans un data-attribute pour la récupérer dans .complete
+  fill.dataset.barColor = color;
   fill.style.background = color;
   fill.style.boxShadow  = `0 0 8px ${color}88`;
+  // Injecte la variable CSS pour l'animation flash dans .complete
+  fill.style.setProperty('--bar-color', color);
 }
 
 // ===== CASCADE =====
@@ -527,7 +537,7 @@ function goalUnitLabel(){ const t=cfg('goalType'); return t==='dono'?'€':t==='
 
 // ===== ALERT BOX =====
 // Ligne du haut  : type d'event + tier  ex: "Nouveau Sub T1" / "Réabonnement T2" / "Gift Sub Prime"
-// Ligne du bas   : pseudo + mois        ex: "Swerkx - x12"  (mois affiché seulement pour sub/resub)
+// Ligne du bas   : pseudo + info        ex: "Swerkx - x12" (mois pour sub/resub) ou "Swerkx - +5min" (gift)
 function showAlert(type, name, months, topTier, flash=true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
@@ -552,14 +562,13 @@ function showAlert(type, name, months, topTier, flash=true) {
   elAlertType.textContent = topLine;
 
   // --- Ligne du bas ---
-  // Pour sub / resub / gift : "Pseudo - x12" si on a le nombre de mois
-  // Pour don / bits / follow : juste le pseudo (ou pseudo + montant)
+  // sub / resub : "Pseudo - x12" (nombre de mois)
+  // gift        : "Gifter - +5min" (temps ajouté en lisible)
+  // dono / bits : "Pseudo - montant"
+  // follow      : juste le pseudo
   let bottomLine = name || 'Anonyme';
-  if (months && months > 0 && (type === 'sub' || type === 'resub' || type === 'gift')) {
-    bottomLine = name + ' - x' + months;
-  } else if (months && months > 0) {
-    // Pour don/bits on utilise months comme "extra" (montant)
-    bottomLine = name + ' - ' + months;
+  if (months !== null && months !== undefined) {
+    bottomLine = (name || 'Anonyme') + ' - ' + months;
   }
   elAlertName.textContent = bottomLine;
 
@@ -571,7 +580,7 @@ function showAlert(type, name, months, topTier, flash=true) {
 }
 
 /* =============================================
-   INIT v3.8
+   INIT v3.9
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -691,10 +700,12 @@ window.addEventListener('onEventReceived', function(obj) {
       if (!cfgBool('giftEnabled')) return;
       const gifter = data.gifter || data.sender || uname;
       const secs   = tierSeconds('timePerGiftT', tierRaw);
+      // FIX: on passe le temps ajouté en label lisible dans months
+      // pour que showAlert affiche "Gifter - +5min" à la place de rien
       enqueueEvent({
         type:       'gift',
         name:       gifter,
-        months:     null,
+        months:     '+' + secsToLabel(secs),
         topTier:    tLabel,
         secsToAdd:  secs,
         goalAdd:    1,
@@ -708,7 +719,7 @@ window.addEventListener('onEventReceived', function(obj) {
       enqueueEvent({
         type:       'resub',
         name:       uname,
-        months:     months,
+        months:     'x' + months,
         topTier:    tLabel,
         secsToAdd:  secs,
         goalAdd:    1,
@@ -722,7 +733,7 @@ window.addEventListener('onEventReceived', function(obj) {
       enqueueEvent({
         type:       'sub',
         name:       uname,
-        months:     months,
+        months:     'x' + months,
         topTier:    tLabel,
         secsToAdd:  secs,
         goalAdd:    1,
