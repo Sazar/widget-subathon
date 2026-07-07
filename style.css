@@ -1,5 +1,5 @@
 /* =============================================
-   SUBATHON WIDGET v3.9
+   SUBATHON WIDGET v4.0
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
@@ -22,7 +22,6 @@
   --radius-large:    14px;
   --radius-small:    8px;
   --overlap:         18px;
-  /* Couleur de la barre active (injectée par JS via fill.style.setProperty) */
   --bar-color:       #e84118;
 }
 
@@ -250,15 +249,32 @@ body {
   font-family: var(--widget-font);
   overflow: hidden;
   animation: none;
+  transition: opacity 1s ease, filter 1s ease;
+}
+
+/* État assombri : la barre complétée attend 10s avant de laisser la place */
+.goal-bar-wrap.dimmed {
+  opacity: 0.35;
+  filter: saturate(0.3) brightness(0.6);
 }
 
 .goal-bar-wrap.slide-in {
   animation: slideDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* Slide-out : la barre complétée sort vers le haut avant de disparaître */
+.goal-bar-wrap.slide-out {
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
 @keyframes slideDown {
   0%   { opacity: 0; transform: translateY(-18px) scaleY(0.85); }
   100% { opacity: 1; transform: translateY(0)     scaleY(1); }
+}
+
+@keyframes slideUp {
+  0%   { opacity: 1; transform: translateY(0)     scaleY(1); }
+  100% { opacity: 0; transform: translateY(-18px) scaleY(0.85); }
 }
 
 .goal-bar-header {
@@ -313,33 +329,17 @@ body {
   height: 100%;
   width: 0%;
   border-radius: 99px;
-  /* La couleur est injectée via style inline + --bar-color par le JS */
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
               box-shadow 0.4s ease;
 }
 
-/*
-  Barre complète :
-  - Garde la couleur choisie (pas d'override de background)
-  - Effet flash : pulse de luminosité + box-shadow puissant dans la couleur de la barre
-  - Animation en boucle tant que la barre est pleine
-*/
+/* Barre complète : garde la couleur choisie + pulse glow en boucle */
 .goal-bar-fill.complete {
-  /* On garde la couleur du JS, on ajoute juste un effet visuel */
   animation: barFlash 1.4s ease-in-out infinite;
 }
 
 @keyframes barFlash {
-  0%   {
-    box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color);
-    filter: brightness(1);
-  }
-  50%  {
-    box-shadow: 0 0 18px var(--bar-color), 0 0 32px var(--bar-color);
-    filter: brightness(1.45);
-  }
-  100% {
-    box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color);
-    filter: brightness(1);
-  }
+  0%   { box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color); filter: brightness(1);    }
+  50%  { box-shadow: 0 0 18px var(--bar-color), 0 0 32px var(--bar-color); filter: brightness(1.45); }
+  100% { box-shadow: 0 0 6px  var(--bar-color), 0 0 0px  var(--bar-color); filter: brightness(1);    }
 }

@@ -1,7 +1,8 @@
 /* =============================================
-   SUBATHON WIDGET v3.9
-   - Fix: gift sub affiche le temps ajouté (x mois)
-   - Fix: barre complète garde la couleur choisie + effet flash
+   SUBATHON WIDGET v4.0
+   - FIX CRITIQUE: gift/resub tierSeconds prefix corrigé
+     'timePerGiftT' -> 'timePerGift' (évite le double T)
+   - Cascade barre : 10s assombrie puis slide-out avant d'afficher la suivante
    ============================================= */
 
 const DEFAULT = {
@@ -59,7 +60,6 @@ const DEFAULT = {
   infoText:       '#ffffff',
   glowColor:      '#e84118',
   glowOpacity:    45,
-  // Barres
   gbar1Enabled:  false, gbar1Label:  'Objectif subs',  gbar1Type:  'sub',  gbar1Target:  100,  gbar1Color:  '#e84118',
   gbar2Enabled:  false, gbar2Label:  'Objectif tips',  gbar2Type:  'dono', gbar2Target:  500,  gbar2Color:  '#e84118',
   gbar3Enabled:  false, gbar3Label:  'Objectif bits',  gbar3Type:  'bits', gbar3Target:  10000, gbar3Color: '#e84118',
@@ -93,6 +93,8 @@ const SK_GBAR  = (n) => 'sa_gbar' + n;
 const RELOAD_WINDOW_MS = 5 * 60 * 1000;
 const MAX_BARS    = 10;
 const MAX_VISIBLE = 3;
+// Délai (ms) pendant lequel la barre complétée reste assombrie avant de céder la place
+const CASCADE_HOLD_MS = 10000;
 
 function storeSet(key, val) {
   if (typeof SE_API !== 'undefined') SE_API.store.set(key, val);
@@ -173,14 +175,23 @@ function parseTimeField(val) {
   const n = parseInt(s,10);
   return isNaN(n)?0:n;
 }
+
+/*
+  tierSeconds — ATTENTION au préfixe :
+  - sub   : prefix = 'timePerSub'   -> cfg('timePerSubT1'), cfg('timePerSubPrime')
+  - resub : prefix = 'timePerResub' -> cfg('timePerResubT1'), cfg('timePerResubPrime')
+  - gift  : prefix = 'timePerGift'  -> cfg('timePerGiftT1'), cfg('timePerGiftPrime')
+  NE PAS inclure le 'T' final dans le préfixe, la fonction l'ajoute elle-même.
+*/
 function tierSeconds(prefix, tierRaw) {
   const t = String(tierRaw||'').toLowerCase();
-  if (t==='prime') return safeInt(cfg(prefix+'Prime'),DEFAULT[prefix+'Prime']);
-  const n = safeInt(tierRaw,1000);
-  if (n>=3000) return safeInt(cfg(prefix+'T3'),DEFAULT[prefix+'T3']);
-  if (n>=2000) return safeInt(cfg(prefix+'T2'),DEFAULT[prefix+'T2']);
-  return safeInt(cfg(prefix+'T1'),DEFAULT[prefix+'T1']);
+  if (t === 'prime') return safeInt(cfg(prefix + 'Prime'), DEFAULT[prefix + 'Prime'] || 300);
+  const n = safeInt(tierRaw, 1000);
+  if (n >= 3000) return safeInt(cfg(prefix + 'T3'), DEFAULT[prefix + 'T3'] || 900);
+  if (n >= 2000) return safeInt(cfg(prefix + 'T2'), DEFAULT[prefix + 'T2'] || 600);
+  return safeInt(cfg(prefix + 'T1'), DEFAULT[prefix + 'T1'] || 300);
 }
+
 function tierLabel(tierRaw) {
   const t = String(tierRaw||'').toLowerCase();
   if (t==='prime') return 'Prime';
@@ -190,7 +201,6 @@ function tierLabel(tierRaw) {
   return 'T1';
 }
 
-// Convertit des secondes en label lisible ex: 300 -> "5min", 3600 -> "1h"
 function secsToLabel(s) {
   if (!s || s <= 0) return '0s';
   if (s < 60)   return s + 's';
@@ -211,8 +221,9 @@ let safeCurrent   = 3600;
 const gbarCurrent = {};
 for (let i = 1; i <= MAX_BARS; i++) gbarCurrent[i] = 0;
 
-let gbarOrder       = [];
-let gbarWindowStart = 0;
+let gbarOrder        = [];
+let gbarWindowStart  = 0;
+let gbarCascadeLocked = false; // verrou pendant le hold de 10s
 
 const elTimer     = document.getElementById('timerDisplay');
 const elAlertBox  = document.getElementById('alertBox');
@@ -233,15 +244,13 @@ function applyGbarColor(n) {
   const fill = gbarEl(n, 'fill');
   if (!fill) return;
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
-  // Stocke la couleur dans un data-attribute pour la récupérer dans .complete
   fill.dataset.barColor = color;
   fill.style.background = color;
   fill.style.boxShadow  = `0 0 8px ${color}88`;
-  // Injecte la variable CSS pour l'animation flash dans .complete
   fill.style.setProperty('--bar-color', color);
 }
 
-// ===== CASCADE =====
+// ===== CASCADE avec hold 10s =====
 function refreshCascade(animate) {
   if (!gbarOrder.length) return;
   for (let i = 0; i < gbarOrder.length; i++) {
@@ -252,6 +261,7 @@ function refreshCascade(animate) {
     if (inWindow) {
       if (wrap.style.display === 'none') {
         wrap.style.display = '';
+        wrap.classList.remove('dimmed');
         if (animate) {
           wrap.classList.remove('slide-in');
           void wrap.offsetWidth;
@@ -260,31 +270,63 @@ function refreshCascade(animate) {
       }
     } else {
       wrap.style.display = 'none';
-      wrap.classList.remove('slide-in');
+      wrap.classList.remove('slide-in', 'dimmed');
     }
   }
 }
 
+/*
+  Quand la barre de tête est pleine :
+  1. On ajoute la classe 'dimmed' sur le wrap (assombrissement)
+  2. On attend CASCADE_HOLD_MS (10s)
+  3. On fait un slide-out de la barre sortante
+  4. On avance la fenêtre et on slide-in la suivante
+*/
 function checkCascadeAdvance() {
+  if (gbarCascadeLocked) return;
   if (!gbarOrder.length) return;
   const headIdx = gbarWindowStart;
   if (headIdx >= gbarOrder.length) return;
   const headN  = gbarOrder[headIdx];
   const target = safeFloat(cfg('gbar'+headN+'Target'), 100);
-  if (gbarCurrent[headN] >= target) {
-    gbarWindowStart = Math.min(gbarWindowStart + 1, gbarOrder.length);
-    refreshCascade(true);
-  }
+  if (gbarCurrent[headN] < target) return;
+
+  // Vérifie qu'il y a une barre suivante à afficher
+  if (gbarWindowStart + 1 >= gbarOrder.length) return;
+
+  gbarCascadeLocked = true;
+  const headWrap = document.getElementById('gbar' + headN);
+
+  // Étape 1 : assombrir
+  if (headWrap) headWrap.classList.add('dimmed');
+
+  // Étape 2 : après 10s, slide-out puis slide-in suivante
+  setTimeout(function() {
+    if (headWrap) {
+      headWrap.classList.remove('dimmed');
+      headWrap.classList.add('slide-out');
+    }
+    setTimeout(function() {
+      if (headWrap) {
+        headWrap.style.display = 'none';
+        headWrap.classList.remove('slide-out');
+      }
+      gbarWindowStart = Math.min(gbarWindowStart + 1, gbarOrder.length);
+      gbarCascadeLocked = false;
+      refreshCascade(true);
+    }, 500); // durée du slide-out
+  }, CASCADE_HOLD_MS);
 }
 
 // ===== INIT BARRES =====
 function initGbars() {
-  gbarOrder       = [];
-  gbarWindowStart = 0;
+  gbarOrder        = [];
+  gbarWindowStart  = 0;
+  gbarCascadeLocked = false;
 
   for (let n = 1; n <= MAX_BARS; n++) {
     const wrap = document.getElementById('gbar' + n);
-    if (wrap) wrap.style.display = 'none';
+    if (wrap) { wrap.style.display = 'none'; wrap.classList.remove('dimmed','slide-out'); }
     if (!cfgBool('gbar'+n+'Enabled')) continue;
 
     gbarOrder.push(n);
@@ -327,6 +369,7 @@ function updateGbar(n) {
   fill.style.width = pct + '%';
   if (pct >= 100) {
     fill.classList.add('complete');
+    // Déclenche la cascade hold après 700ms (laisse la barre finir son animation de remplissage)
     setTimeout(checkCascadeAdvance, 700);
   } else {
     fill.classList.remove('complete');
@@ -536,36 +579,20 @@ function updateTimerDisplay(){
 function goalUnitLabel(){ const t=cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
 // ===== ALERT BOX =====
-// Ligne du haut  : type d'event + tier  ex: "Nouveau Sub T1" / "Réabonnement T2" / "Gift Sub Prime"
-// Ligne du bas   : pseudo + info        ex: "Swerkx - x12" (mois pour sub/resub) ou "Swerkx - +5min" (gift)
 function showAlert(type, name, months, topTier, flash=true) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
 
-  // --- Ligne du haut ---
   let topLine = '';
-  if (type === 'sub') {
-    topLine = 'Nouveau Sub' + (topTier ? ' ' + topTier : '');
-  } else if (type === 'resub') {
-    topLine = 'Réabonnement' + (topTier ? ' ' + topTier : '');
-  } else if (type === 'gift') {
-    topLine = 'Gift Sub' + (topTier ? ' ' + topTier : '');
-  } else if (type === 'dono') {
-    topLine = 'Nouveau Don';
-  } else if (type === 'bits') {
-    topLine = 'Cheers';
-  } else if (type === 'follow') {
-    topLine = 'Nouveau Follow';
-  } else {
-    topLine = type;
-  }
+  if      (type === 'sub')    topLine = 'Nouveau Sub'    + (topTier ? ' ' + topTier : '');
+  else if (type === 'resub')  topLine = 'Réabonnement'   + (topTier ? ' ' + topTier : '');
+  else if (type === 'gift')   topLine = 'Gift Sub'        + (topTier ? ' ' + topTier : '');
+  else if (type === 'dono')   topLine = 'Nouveau Don';
+  else if (type === 'bits')   topLine = 'Cheers';
+  else if (type === 'follow') topLine = 'Nouveau Follow';
+  else                        topLine = type;
   elAlertType.textContent = topLine;
 
-  // --- Ligne du bas ---
-  // sub / resub : "Pseudo - x12" (nombre de mois)
-  // gift        : "Gifter - +5min" (temps ajouté en lisible)
-  // dono / bits : "Pseudo - montant"
-  // follow      : juste le pseudo
   let bottomLine = name || 'Anonyme';
   if (months !== null && months !== undefined) {
     bottomLine = (name || 'Anonyme') + ' - ' + months;
@@ -580,7 +607,7 @@ function showAlert(type, name, months, topTier, flash=true) {
 }
 
 /* =============================================
-   INIT v3.9
+   INIT v4.0
    ============================================= */
 function init(fd) {
   if (fd) window.fieldData = fd;
@@ -699,9 +726,8 @@ window.addEventListener('onEventReceived', function(obj) {
     if (isGift) {
       if (!cfgBool('giftEnabled')) return;
       const gifter = data.gifter || data.sender || uname;
-      const secs   = tierSeconds('timePerGiftT', tierRaw);
-      // FIX: on passe le temps ajouté en label lisible dans months
-      // pour que showAlert affiche "Gifter - +5min" à la place de rien
+      // PREFIX CORRECT : 'timePerGift' (sans T final)
+      const secs   = tierSeconds('timePerGift', tierRaw);
       enqueueEvent({
         type:       'gift',
         name:       gifter,
@@ -715,7 +741,8 @@ window.addEventListener('onEventReceived', function(obj) {
       });
     } else if (safeInt(data.months,0) > 1 || data.streak) {
       if (!cfgBool('resubEnabled')) return;
-      const secs = tierSeconds('timePerResubT', tierRaw);
+      // PREFIX CORRECT : 'timePerResub' (sans T final)
+      const secs = tierSeconds('timePerResub', tierRaw);
       enqueueEvent({
         type:       'resub',
         name:       uname,
@@ -729,7 +756,8 @@ window.addEventListener('onEventReceived', function(obj) {
       });
     } else {
       if (!cfgBool('subEnabled')) return;
-      const secs = tierSeconds('timePerSubT', tierRaw);
+      // PREFIX CORRECT : 'timePerSub' (sans T final)
+      const secs = tierSeconds('timePerSub', tierRaw);
       enqueueEvent({
         type:       'sub',
         name:       uname,
