@@ -1,13 +1,12 @@
 /* =============================================
    SUBATHON WIDGET v4.2
    NOUVEAUTÉS :
-   - Effet burst quand une barre de goal est atteinte (classe .goal-reached)
+   - Effet burst quand une barre de goal est atteinte
    - Mode X2 : !x2on [durée] / !x2off
-     · Multiplie par 2 tous les temps ajoutés (subs, resubs, gifts, dons, bits, follows)
-     · Icône dorée animée sur l'alert box quand actif
-     · Durée optionnelle en argument (ex: !x2on 5:00 → 5 min)
-     · !x2off pour arrêter manuellement
-     · Timer automatique si durée fournie
+     · Multiplie ×2 tous les temps ajoutés
+     · Badge doré centré en haut de l'alert box quand actif
+     · Lié à cmdEnabled : si les commandes sont désactivées, !x2on/!x2off ne fonctionnent pas
+     · Pas de préfixe dans le texte de l'alerte
    ============================================= */
 
 const DEFAULT = {
@@ -48,7 +47,6 @@ const DEFAULT = {
   cmdSetTime:     'settime',
   cmdAddTime:     'addtime',
   cmdRemoveTime:  'removetime',
-  /* Nouvelles commandes X2 — noms configurables */
   cmdX2On:        'x2on',
   cmdX2Off:       'x2off',
   cmdModOnly:     true,
@@ -107,10 +105,17 @@ let CASCADE_HOLD_MS = 10000;
 
 /* =============================================
    MODE X2
-   x2Active   : booléen — true si le mode est actif
-   x2Timer    : référence au setTimeout de fin automatique
-   setX2(bool): active/désactive le mode et met à jour l'icône
-   applyX2(s) : applique le multiplicateur ×2 si actif
+   - x2Active  : booléen, true si le mode est actif
+   - x2Timer   : référence au setTimeout de fin automatique
+   - setX2()   : active/désactive le badge + le multiplicateur
+   - applyX2() : retourne seconds * 2 si actif, sinon seconds
+
+   Les commandes !x2on / !x2off suivent exactement
+   la même logique que les autres commandes :
+   · Respectent cmdEnabled (si désactivé → ignorées)
+   · Respectent cmdModOnly (si activé → mods/broadcaster uniquement)
+   · Respectent cmdPrefix
+   · Noms configurables via cmdX2On / cmdX2Off dans fields.json
    ============================================= */
 let x2Active = false;
 let x2Timer  = null;
@@ -304,13 +309,9 @@ function applyGbarColor(n) {
 }
 
 /* =============================================
-   EFFET GOAL ATTEINT (v4.2)
-   Déclenché 1 fois par barre quand elle passe à 100%.
-   1. Classe .goal-reached ajoutée → burst CSS (1.2s)
-   2. --bar-color setté sur le wrap pour que le burst
-      suive la couleur de chaque barre
-   3. Après la durée du burst, la classe est retirée
-      et .dimmed prend le relais (via checkCascadeAdvance)
+   EFFET GOAL ATTEINT
+   Déclenché une seule fois par barre quand elle
+   passe à 100%. Classe .goal-reached → burst CSS.
    ============================================= */
 const gbarBurstDone = {};
 
@@ -321,15 +322,13 @@ function triggerGoalReached(n) {
   const wrap = document.getElementById('gbar' + n);
   if (!wrap) return;
 
-  // Propage --bar-color au wrap pour que le burst box-shadow soit coloré
   const color = String(cfg('gbar'+n+'Color') || DEFAULT['gbar'+n+'Color'] || cfg('accent') || '#e84118');
   wrap.style.setProperty('--bar-color', color);
 
   wrap.classList.remove('goal-reached');
-  void wrap.offsetWidth; // reflow pour reset l'animation
+  void wrap.offsetWidth;
   wrap.classList.add('goal-reached');
 
-  // Retire la classe après 1.4s (légèrement > durée de goalBurstWrap)
   setTimeout(function() {
     wrap.classList.remove('goal-reached');
   }, 1400);
@@ -374,10 +373,8 @@ function checkCascadeAdvance() {
   gbarCascadeLocked = true;
   const headWrap = document.getElementById('gbar' + headN);
 
-  // Étape 1 : assombrir (après le burst)
   if (headWrap) headWrap.classList.add('dimmed');
 
-  // Étape 2 : après CASCADE_HOLD_MS, slide-out puis slide-in suivante
   setTimeout(function() {
     if (headWrap) {
       headWrap.classList.remove('dimmed');
@@ -447,7 +444,6 @@ function updateGbar(n) {
   fill.style.width = pct + '%';
   if (pct >= 100) {
     fill.classList.add('complete');
-    // Effet burst au moment où la barre atteint 100%
     triggerGoalReached(n);
     setTimeout(checkCascadeAdvance, 700);
   } else {
@@ -486,14 +482,14 @@ function drainQueue() {
   }, wait);
 }
 function fireEvent(payload) {
-  const type = payload.type;
-  const name = payload.name;
-  const months = payload.months;
-  const topTier = payload.topTier;
-  const secsToAdd = payload.secsToAdd;
-  const goalAdd = payload.goalAdd;
-  const infoSecs = payload.infoSecs;
-  const gbarType = payload.gbarType;
+  const type       = payload.type;
+  const name       = payload.name;
+  const months     = payload.months;
+  const topTier    = payload.topTier;
+  const secsToAdd  = payload.secsToAdd;
+  const goalAdd    = payload.goalAdd;
+  const infoSecs   = payload.infoSecs;
+  const gbarType   = payload.gbarType;
   const gbarAmount = payload.gbarAmount;
 
   if (secsToAdd)              addTime(secsToAdd);
@@ -501,7 +497,7 @@ function fireEvent(payload) {
   if (gbarType && gbarAmount) addToGbar(gbarType, gbarAmount);
   showInfoBox(infoSecs || 0);
   showAlert(type, name, months, topTier, true);
-  lastEventState = {type, name, months, topTier};
+  lastEventState = {type: type, name: name, months: months, topTier: topTier};
   startIdleCycle();
 }
 
@@ -680,7 +676,11 @@ function updateTimerDisplay() {
 }
 function goalUnitLabel() { const t = cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
-// ===== ALERT BOX =====
+/* =============================================
+   ALERT BOX
+   showAlert n'ajoute PLUS de préfixe X2 dans le
+   texte — le badge visuel suffit.
+   ============================================= */
 function showAlert(type, name, months, topTier, flash) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
@@ -693,9 +693,6 @@ function showAlert(type, name, months, topTier, flash) {
   else if (type === 'bits')   topLine = 'Cheers';
   else if (type === 'follow') topLine = 'Nouveau Follow';
   else                        topLine = type;
-
-  // Indicateur X2 dans la ligne de type si actif
-  if (x2Active) topLine = '✕2 ' + topLine;
 
   elAlertType.textContent = topLine;
 
@@ -787,21 +784,32 @@ let _lastEventId = null;
 window.addEventListener('onEventReceived', function(obj) {
   const listener = obj.detail.listener;
 
-  // ===== COMMANDES CHAT =====
+  /* =============================================
+     COMMANDES CHAT
+     Toutes les commandes — y compris !x2on et !x2off —
+     sont conditionnées à cfgBool('cmdEnabled').
+     Si les commandes sont désactivées dans le panel,
+     AUCUNE commande ne fonctionne.
+     ============================================= */
   if (listener === 'message') {
-    if (!cfgBool('cmdEnabled')) return;
+    if (!cfgBool('cmdEnabled')) return;  // ← bloque TOUT si commandes désactivées
+
     const data = obj.detail.event.data;
     const msg  = String(data.text||'').trim();
+
     if (cfgBool('cmdModOnly')) {
       const isMod = !!(data.tags && data.tags.mod === '1');
       const isBc  = (data.badges||[]).some(function(b) { return b.type === 'broadcaster'; });
       if (!isMod && !isBc) return;
     }
+
     const prefix = String(cfg('cmdPrefix')||'!').trim();
     if (!msg.startsWith(prefix)) return;
+
     const parts = msg.slice(prefix.length).trim().split(/\s+/);
     const cmd = parts[0].toLowerCase();
     const arg = parts[1] || '';
+
     const al = {
       start:      String(cfg('cmdStart')      || DEFAULT.cmdStart).toLowerCase(),
       stop:       String(cfg('cmdStop')       || DEFAULT.cmdStop).toLowerCase(),
@@ -809,9 +817,8 @@ window.addEventListener('onEventReceived', function(obj) {
       settime:    String(cfg('cmdSetTime')    || DEFAULT.cmdSetTime).toLowerCase(),
       addtime:    String(cfg('cmdAddTime')    || DEFAULT.cmdAddTime).toLowerCase(),
       removetime: String(cfg('cmdRemoveTime') || DEFAULT.cmdRemoveTime).toLowerCase(),
-      /* Commandes X2 */
-      x2on:  String(cfg('cmdX2On')  || DEFAULT.cmdX2On).toLowerCase(),
-      x2off: String(cfg('cmdX2Off') || DEFAULT.cmdX2Off).toLowerCase(),
+      x2on:       String(cfg('cmdX2On')       || DEFAULT.cmdX2On).toLowerCase(),
+      x2off:      String(cfg('cmdX2Off')      || DEFAULT.cmdX2Off).toLowerCase(),
     };
 
     if (cmd === al.start)  { if (!running && timeLeft > 0) { startTimer(); storeSave(); } return; }
@@ -821,31 +828,20 @@ window.addEventListener('onEventReceived', function(obj) {
     if (cmd === al.addtime    && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
     if (cmd === al.removetime && arg) { const s = parseTimeField(arg); if (s > 0) removeTime(s); return; }
 
-    /* =============================================
-       COMMANDE !x2on [durée]
-       Exemples :
-         !x2on          → X2 activé sans fin automatique
-         !x2on 5:00     → X2 actif pendant 5 minutes
-         !x2on 1:00:00  → X2 actif pendant 1 heure
-         !x2on 300      → X2 actif pendant 300 secondes
-
-       COMMANDE !x2off
-         → Désactive le X2 immédiatement
-       ============================================= */
+    /* --- !x2on [durée optionnelle] --- */
     if (cmd === al.x2on) {
       if (x2Timer) { clearTimeout(x2Timer); x2Timer = null; }
       setX2(true);
       if (arg) {
         const duration = parseTimeField(arg);
         if (duration > 0) {
-          x2Timer = setTimeout(function() {
-            setX2(false);
-          }, duration * 1000);
+          x2Timer = setTimeout(function() { setX2(false); }, duration * 1000);
         }
       }
       return;
     }
 
+    /* --- !x2off --- */
     if (cmd === al.x2off) {
       setX2(false);
       return;
@@ -873,26 +869,17 @@ window.addEventListener('onEventReceived', function(obj) {
       const gifter  = data.gifter || data.sender || uname;
       const rawSecs = tierSeconds('timePerGift', tierRaw);
       const secs    = applyX2(rawSecs);
-      enqueueEvent({
-        type: 'gift', name: gifter, months: '+' + secsToLabel(secs), topTier: tLabel,
-        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
-      });
+      enqueueEvent({ type: 'gift', name: gifter, months: '+' + secsToLabel(secs), topTier: tLabel, secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1 });
     } else if (safeInt(data.months, 0) > 1 || data.streak) {
       if (!cfgBool('resubEnabled')) return;
       const rawSecs = tierSeconds('timePerResub', tierRaw);
       const secs    = applyX2(rawSecs);
-      enqueueEvent({
-        type: 'resub', name: uname, months: 'x' + months, topTier: tLabel,
-        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
-      });
+      enqueueEvent({ type: 'resub', name: uname, months: 'x' + months, topTier: tLabel, secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1 });
     } else {
       if (!cfgBool('subEnabled')) return;
       const rawSecs = tierSeconds('timePerSub', tierRaw);
       const secs    = applyX2(rawSecs);
-      enqueueEvent({
-        type: 'sub', name: uname, months: 'x' + months, topTier: tLabel,
-        secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1,
-      });
+      enqueueEvent({ type: 'sub', name: uname, months: 'x' + months, topTier: tLabel, secsToAdd: secs, goalAdd: 1, infoSecs: secs, gbarType: 'sub', gbarAmount: 1 });
     }
     return;
   }
@@ -900,30 +887,24 @@ window.addEventListener('onEventReceived', function(obj) {
   // ===== DON =====
   if (listener === 'tip-latest') {
     if (!cfgBool('donoEnabled')) return;
-    const uname  = data.displayName || data.name || 'Anonyme';
-    const amount = safeFloat(data.amount, 0);
-    const per    = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
+    const uname   = data.displayName || data.name || 'Anonyme';
+    const amount  = safeFloat(data.amount, 0);
+    const per     = safeFloat(cfg('timePerDonoPer'), DEFAULT.timePerDonoPer);
     const rawSecs = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerDono'), DEFAULT.timePerDono) : 0;
     const secs    = applyX2(rawSecs);
-    enqueueEvent({
-      type: 'dono', name: uname, months: amount > 0 ? amount + '€' : null, topTier: null,
-      secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'dono', gbarAmount: amount,
-    });
+    enqueueEvent({ type: 'dono', name: uname, months: amount > 0 ? amount + '€' : null, topTier: null, secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'dono', gbarAmount: amount });
     return;
   }
 
   // ===== BITS =====
   if (listener === 'cheer-latest') {
     if (!cfgBool('bitsEnabled')) return;
-    const uname  = data.displayName || data.name || 'Anonyme';
-    const amount = safeInt(data.amount, 0);
-    const per    = safeFloat(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
+    const uname   = data.displayName || data.name || 'Anonyme';
+    const amount  = safeInt(data.amount, 0);
+    const per     = safeFloat(cfg('timePerBitsPer'), DEFAULT.timePerBitsPer);
     const rawSecs = per > 0 ? Math.floor(amount / per) * safeInt(cfg('timePerBits'), DEFAULT.timePerBits) : 0;
     const secs    = applyX2(rawSecs);
-    enqueueEvent({
-      type: 'bits', name: uname, months: amount > 0 ? amount + ' bits' : null, topTier: null,
-      secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'bits', gbarAmount: amount,
-    });
+    enqueueEvent({ type: 'bits', name: uname, months: amount > 0 ? amount + ' bits' : null, topTier: null, secsToAdd: secs, goalAdd: amount, infoSecs: secs, gbarType: 'bits', gbarAmount: amount });
     return;
   }
 
@@ -933,10 +914,7 @@ window.addEventListener('onEventReceived', function(obj) {
     const uname   = data.displayName || data.name || 'Anonyme';
     const rawSecs = safeInt(cfg('timePerFollow'), DEFAULT.timePerFollow);
     const secs    = applyX2(rawSecs);
-    enqueueEvent({
-      type: 'follow', name: uname, months: null, topTier: null,
-      secsToAdd: secs, goalAdd: 0, infoSecs: secs, gbarType: 'follow', gbarAmount: 1,
-    });
+    enqueueEvent({ type: 'follow', name: uname, months: null, topTier: null, secsToAdd: secs, goalAdd: 0, infoSecs: secs, gbarType: 'follow', gbarAmount: 1 });
     return;
   }
 });

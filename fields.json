@@ -58,13 +58,15 @@
 
   "cmdEnabled": { "type": "checkbox", "label": "💬 Activer les commandes chat", "value": true },
   "cmdPrefix":   { "type": "text",     "label": "💬 Préfixe commandes",          "value": "!" },
-  "cmdStart":       { "type": "text", "label": "💬 Alias Démarrer le timer",                        "value": "start" },
-  "cmdStop":        { "type": "text", "label": "💬 Alias Mettre en pause",                          "value": "stop" },
-  "cmdReset":       { "type": "text", "label": "💬 Alias Remettre à zéro",                          "value": "reset" },
-  "cmdSetTime":     { "type": "text", "label": "💬 Alias Définir le temps (ex: !settime 01:30:00)", "value": "settime" },
-  "cmdAddTime":     { "type": "text", "label": "💬 Alias Ajouter du temps",                         "value": "addtime" },
-  "cmdRemoveTime":  { "type": "text", "label": "💬 Alias Retirer du temps",                         "value": "removetime" },
-  "cmdModOnly":     { "type": "checkbox", "label": "🛡️ Commandes réservées aux mods & streamer",    "value": true },
+  "cmdStart":       { "type": "text", "label": "💬 Alias — Démarrer le timer",                        "value": "start" },
+  "cmdStop":        { "type": "text", "label": "💬 Alias — Mettre en pause",                          "value": "stop" },
+  "cmdReset":       { "type": "text", "label": "💬 Alias — Remettre à zéro",                          "value": "reset" },
+  "cmdSetTime":     { "type": "text", "label": "💬 Alias — Définir le temps (ex: !settime 01:30:00)", "value": "settime" },
+  "cmdAddTime":     { "type": "text", "label": "💬 Alias — Ajouter du temps (ex: !addtime 5:00)",     "value": "addtime" },
+  "cmdRemoveTime":  { "type": "text", "label": "💬 Alias — Retirer du temps",                         "value": "removetime" },
+  "cmdX2On":        { "type": "text", "label": "⚡ Alias — Activer le mode X2 (ex: !x2on 5:00)",      "value": "x2on" },
+  "cmdX2Off":       { "type": "text", "label": "⚡ Alias — Désactiver le mode X2",                    "value": "x2off" },
+  "cmdModOnly":     { "type": "checkbox", "label": "🛡️ Toutes les commandes réservées aux mods & streamer (s'applique aussi au X2)", "value": true },
 
   "widgetFont": {
     "type": "dropdown",
