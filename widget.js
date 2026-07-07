@@ -7,6 +7,7 @@
      · Badge doré centré en haut de l'alert box quand actif
      · Lié à cmdEnabled : si les commandes sont désactivées, !x2on/!x2off ne fonctionnent pas
      · Pas de préfixe dans le texte de l'alerte
+   - Info box : +temps visible uniquement lors d'un event (hors rotation)
    ============================================= */
 
 const DEFAULT = {
@@ -105,17 +106,6 @@ let CASCADE_HOLD_MS = 10000;
 
 /* =============================================
    MODE X2
-   - x2Active  : booléen, true si le mode est actif
-   - x2Timer   : référence au setTimeout de fin automatique
-   - setX2()   : active/désactive le badge + le multiplicateur
-   - applyX2() : retourne seconds * 2 si actif, sinon seconds
-
-   Les commandes !x2on / !x2off suivent exactement
-   la même logique que les autres commandes :
-   · Respectent cmdEnabled (si désactivé → ignorées)
-   · Respectent cmdModOnly (si activé → mods/broadcaster uniquement)
-   · Respectent cmdPrefix
-   · Noms configurables via cmdX2On / cmdX2Off dans fields.json
    ============================================= */
 let x2Active = false;
 let x2Timer  = null;
@@ -310,8 +300,6 @@ function applyGbarColor(n) {
 
 /* =============================================
    EFFET GOAL ATTEINT
-   Déclenché une seule fois par barre quand elle
-   passe à 100%. Classe .goal-reached → burst CSS.
    ============================================= */
 const gbarBurstDone = {};
 
@@ -539,7 +527,7 @@ function startIdleCycle() {
 
 let activeSlot = elSlotA, inactiveSlot = elSlotB;
 let flipLocked = false, rotationLocked = false, rotationIndex = 0;
-let rotationInterval = null, lastEventSecs = null;
+let rotationInterval = null;
 
 function formatTimeLabel(s) {
   if (s < 60)   return s + 's';
@@ -547,16 +535,23 @@ function formatTimeLabel(s) {
   const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
   return h + 'h' + (m ? m + 'min' : '');
 }
+
+/* =============================================
+   ROTATION INFO BOX
+   Affiche uniquement T1 / T2 / T3 / Prime.
+   Le +temps du dernier event est affiché
+   ponctuellement via showInfoBox() et n'entre
+   pas dans la rotation automatique.
+   ============================================= */
 function buildRotationSlides() {
-  const slides = [
+  return [
     'T1 +'   + formatTimeLabel(safeInt(cfg('timePerSubT1'),    DEFAULT.timePerSubT1)),
     'T2 +'   + formatTimeLabel(safeInt(cfg('timePerSubT2'),    DEFAULT.timePerSubT2)),
     'T3 +'   + formatTimeLabel(safeInt(cfg('timePerSubT3'),    DEFAULT.timePerSubT3)),
     'Prime +' + formatTimeLabel(safeInt(cfg('timePerSubPrime'), DEFAULT.timePerSubPrime)),
   ];
-  if (lastEventSecs !== null) slides.push('+' + formatTimeLabel(lastEventSecs));
-  return slides;
 }
+
 function flipTo(text, animate) {
   if (animate && flipLocked) return;
   inactiveSlot.textContent = text;
@@ -591,11 +586,22 @@ function startRotation() {
   flipTo(slides[0], false); rotationIndex = 1;
   rotationInterval = setInterval(rotationTick, 5000);
 }
+
+/* =============================================
+   showInfoBox
+   Affiche le +temps lors d'un event pendant 6s,
+   puis reprend la rotation T1/T2/T3/Prime.
+   Le +temps n'est PAS injecté dans la rotation.
+   ============================================= */
 function showInfoBox(seconds) {
-  lastEventSecs = seconds; rotationLocked = true; rotationIndex = 0;
+  rotationLocked = true;
   flipTo('+' + formatTimeLabel(seconds), true);
   elInfoBox.classList.remove('pop'); void elInfoBox.offsetWidth; elInfoBox.classList.add('pop');
-  setTimeout(function() { rotationLocked = false; }, 6000);
+  setTimeout(function() {
+    rotationLocked = false;
+    // Reprend proprement la rotation depuis le slide courant
+    rotationTick();
+  }, 6000);
 }
 
 function loadFont(fontName) {
@@ -676,11 +682,6 @@ function updateTimerDisplay() {
 }
 function goalUnitLabel() { const t = cfg('goalType'); return t==='dono'?'€':t==='bits'?'bits':'subs'; }
 
-/* =============================================
-   ALERT BOX
-   showAlert n'ajoute PLUS de préfixe X2 dans le
-   texte — le badge visuel suffit.
-   ============================================= */
 function showAlert(type, name, months, topTier, flash) {
   elAlertName.classList.remove('idle');
   elAlertName.style.fontSize = elAlertName.dataset.eventSize || '42px';
@@ -784,15 +785,8 @@ let _lastEventId = null;
 window.addEventListener('onEventReceived', function(obj) {
   const listener = obj.detail.listener;
 
-  /* =============================================
-     COMMANDES CHAT
-     Toutes les commandes — y compris !x2on et !x2off —
-     sont conditionnées à cfgBool('cmdEnabled').
-     Si les commandes sont désactivées dans le panel,
-     AUCUNE commande ne fonctionne.
-     ============================================= */
   if (listener === 'message') {
-    if (!cfgBool('cmdEnabled')) return;  // ← bloque TOUT si commandes désactivées
+    if (!cfgBool('cmdEnabled')) return;
 
     const data = obj.detail.event.data;
     const msg  = String(data.text||'').trim();
@@ -828,7 +822,6 @@ window.addEventListener('onEventReceived', function(obj) {
     if (cmd === al.addtime    && arg) { const s = parseTimeField(arg); if (s > 0) addTime(s);    return; }
     if (cmd === al.removetime && arg) { const s = parseTimeField(arg); if (s > 0) removeTime(s); return; }
 
-    /* --- !x2on [durée optionnelle] --- */
     if (cmd === al.x2on) {
       if (x2Timer) { clearTimeout(x2Timer); x2Timer = null; }
       setX2(true);
@@ -841,7 +834,6 @@ window.addEventListener('onEventReceived', function(obj) {
       return;
     }
 
-    /* --- !x2off --- */
     if (cmd === al.x2off) {
       setX2(false);
       return;
